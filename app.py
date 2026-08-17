@@ -1,7 +1,3 @@
-
-
-
-
 """
 REVORA
 Machine-learning powered automotive horsepower predictor.
@@ -403,12 +399,6 @@ def inject_css():
         .battle-result .winner-meta {{
             margin-top:.35rem; color:#7f8a93;
             font:600 .7rem 'JetBrains Mono',monospace; letter-spacing:.08em;
-        }}
-        .real-photo-fallback {{
-            height:220px; display:flex; align-items:center; justify-content:center;
-            text-align:center; color:#68727b; border:1px dashed rgba(255,255,255,.10);
-            border-radius:12px; background:#090b0e;
-            font:600 .72rem 'JetBrains Mono',monospace; padding:1rem;
         }}
         @keyframes raceMove {{
             from {{ transform:translateX(0); }}
@@ -835,12 +825,6 @@ def render_real_car_photo(manufacturer: str, brand: str, year=None, body_type=No
             url,
             caption=(f"{manufacturer} {brand} · {year}" if caption and year is not None else None),
             use_container_width=True,
-        )
-    else:
-        st.markdown(
-            f'<div class="real-photo-fallback" style="height:{height_px}px;">'
-            f'REAL PHOTO NOT FOUND<br>{manufacturer} {brand}</div>',
-            unsafe_allow_html=True,
         )
 
 
@@ -1447,12 +1431,7 @@ def render_power_battle(dataset: pd.DataFrame):
     def html_image(url, label):
         if url:
             return f'<img class="battle-car-real" src="{url}" alt="{label}">'
-        return (
-            f'<div class="battle-car-real" style="display:flex;align-items:center;'
-            f'justify-content:center;background:#151a1f;color:#8b939c;'
-            f'font:600 .65rem JetBrains Mono,monospace;padding:10px;text-align:center;">'
-            f'{label}</div>'
-        )
+        return ""
 
     st.markdown("<div class='ap-card'>", unsafe_allow_html=True)
     st.markdown("<div class='ap-card-title'>🏁 REVORA SPEED BATTLE</div>", unsafe_allow_html=True)
@@ -1464,8 +1443,8 @@ def render_power_battle(dataset: pd.DataFrame):
             <div class="battle-lane one"></div>
             <div class="battle-lane two"></div>
 
-            <div class="battle-name a">CAR A · {speed_a:.0f} KM/H</div>
-            <div class="battle-name b">CAR B · {speed_b:.0f} KM/H</div>
+            <div class="battle-name a">{row_a['Manufacturer']} {row_a['Brand']} · {speed_a:.0f} KM/H</div>
+            <div class="battle-name b">{row_b['Manufacturer']} {row_b['Brand']} · {speed_b:.0f} KM/H</div>
 
             <div class="battle-track a" style="--race-duration:{duration_a:.2f}s;">
                 {html_image(img_a, f"{row_a['Manufacturer']} {row_a['Brand']}")}
@@ -2291,5 +2270,3 @@ def main():
 
 if __name__ == "__main__":
     main()
-
-
