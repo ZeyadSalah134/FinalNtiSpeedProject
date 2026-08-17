@@ -1,8 +1,8 @@
 streamlit
 pandas
 numpy
-joblib
+joblib==1.5.3
 plotly
-scikit-learn
-xgboost
-category_encoders
+scikit-learn==1.6.1
+xgboost==3.3.0
+category_encoders==2.10.0
