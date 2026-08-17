@@ -8,7 +8,7 @@ import plotly.express as px
 from pathlib import Path
 
 st.set_page_config(
-    page_title="Car Power AI",
+    page_title="Revora",
     page_icon="🚗",
     layout="wide"
 )
