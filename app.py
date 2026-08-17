@@ -1,6 +1,7 @@
 
 
 
+
 """
 REVORA
 Machine-learning powered automotive horsepower predictor.
@@ -15,8 +16,11 @@ Run with:
 """
 
 import hashlib
+import json
 import math
 from pathlib import Path
+from urllib.parse import urlencode
+from urllib.request import Request, urlopen
 
 import joblib
 import numpy as np
@@ -31,6 +35,8 @@ import streamlit as st
 
 APP_TITLE = "REVORA"
 APP_TAGLINE = "Automotive Performance Intelligence"
+MIN_YEAR = 1950
+MAX_YEAR = 2026
 
 try:
     _APP_DIR = Path(__file__).parent
@@ -343,45 +349,80 @@ def inject_css():
         @keyframes needleSweep {{ from {{ transform:translateX(-50%) rotate(-130deg); }} to {{ transform:translateX(-50%) rotate(var(--needle-angle,-130deg)); }} }}
         .predict-reveal {{ animation:panelReveal .75s ease-out both; }}
         .battle-stage {{
-            position:relative; overflow:hidden; border-radius:22px; min-height:230px; padding:1rem;
+            position:relative; overflow:hidden; border-radius:22px; min-height:360px; padding:1rem;
             background:linear-gradient(180deg,#0d1115,#080a0d);
             border:1px solid rgba(255,255,255,.1);
         }}
-        .battle-lane {{ position:absolute; left:4%; right:4%; height:1px; background:rgba(255,255,255,.08); }}
-        .battle-lane.one {{ top:38%; }} .battle-lane.two {{ top:68%; }}
-        .speed-streak {{
-            position:absolute; height:2px; width:60px; left:0;
-            background:linear-gradient(90deg,transparent,rgba(255,255,255,.55),transparent);
-            animation:streakMove 1.1s linear infinite;
+        .battle-lane {{
+            position:absolute; left:4%; right:4%; height:1px;
+            background:rgba(255,255,255,.09);
         }}
-        .speed-streak.one {{ top:34%; animation-delay:0s; }}
-        .speed-streak.two {{ top:36%; animation-delay:.35s; }}
-        .speed-streak.three {{ top:64%; animation-delay:.15s; }}
-        .speed-streak.four {{ top:66%; animation-delay:.5s; }}
-        @keyframes streakMove {{ 0% {{ transform:translateX(-10%); opacity:0; }} 20% {{ opacity:1; }} 100% {{ transform:translateX(560px); opacity:0; }} }}
-        .battle-car {{
-            position:absolute; width:170px; height:42px; border-radius:18px 28px 10px 10px;
-            background:linear-gradient(180deg,#343c44,#151a1f); border:1px solid rgba(255,255,255,.14);
-            box-shadow:0 12px 22px rgba(0,0,0,.45);
+        .battle-lane.one {{ top:37%; }}
+        .battle-lane.two {{ top:67%; }}
+        .battle-start {{
+            position:absolute; left:10%; top:9%; bottom:8%; width:2px;
+            border-left:2px dashed rgba(255,255,255,.18);
         }}
-        .battle-car:before {{
-            content:""; position:absolute; left:32px; top:-13px; width:70px; height:22px;
-            border-radius:18px 18px 4px 4px; background:#20272d; border:1px solid rgba(255,255,255,.1);
+        .battle-finish {{
+            position:absolute; right:8%; top:9%; bottom:8%; width:3px;
+            background:linear-gradient(180deg,transparent,#FF5A1F,transparent);
+            box-shadow:0 0 18px rgba(255,90,31,.35);
         }}
-        .battle-car:after {{
-            content:""; position:absolute; left:16px; right:-80px; top:15px; height:3px;
-            background:linear-gradient(90deg,transparent,rgba(255,90,31,.5),transparent); filter:blur(1px);
+        .battle-name {{
+            position:absolute; left:1rem;
+            font:700 .68rem 'JetBrains Mono',monospace; letter-spacing:.12em;
+            text-transform:uppercase;
         }}
-        .battle-car.a {{ top:26%; left:3%; border-color:rgba(255,90,31,.55); animation:raceA 2.7s cubic-bezier(.18,.8,.2,1) forwards; }}
-        .battle-car.b {{ top:56%; left:3%; border-color:rgba(47,212,192,.55); animation:raceB 2.7s cubic-bezier(.18,.8,.2,1) forwards; }}
-        .battle-wheel {{ position:absolute; bottom:-7px; width:17px; height:17px; border-radius:50%; background:#050607; border:3px solid #252c32; }}
-        .battle-wheel.w1 {{ left:25px; }} .battle-wheel.w2 {{ right:25px; }}
-        .battle-name {{ position:absolute; top:8px; font:700 .62rem 'JetBrains Mono',monospace; letter-spacing:.12em; }}
-        .battle-name.a {{ left:1rem; color:#FF5A1F; }} .battle-name.b {{ left:1rem; top:50%; color:#2FD4C0; }}
-        .winner-pop {{ animation:winnerPop .75s cubic-bezier(.2,.9,.2,1) .15s both; text-align:center; padding:1rem; }}
-        .winner-pop .cup {{ font-size:2rem; filter:drop-shadow(0 0 14px rgba(255,194,75,.5)); }}
-        .winner-pop .winner-text {{ font:400 2.5rem/1 'Bebas Neue',sans-serif; color:#FF5A1F; letter-spacing:.05em; }}
-        .winner-pop .winner-meta {{ color:#7f8a93; font:600 .7rem 'JetBrains Mono',monospace; letter-spacing:.08em; }}
+        .battle-name.a {{ top:12%; color:#FF5A1F; }}
+        .battle-name.b {{ top:52%; color:#2FD4C0; }}
+        .battle-track {{
+            position:absolute; left:10%; right:8%; height:110px;
+        }}
+        .battle-track.a {{ top:23%; }}
+        .battle-track.b {{ top:53%; }}
+        .battle-car-real {{
+            position:absolute; left:0; top:4px; width:170px; height:100px;
+            object-fit:contain; object-position:center; border-radius:12px;
+            filter:drop-shadow(0 12px 18px rgba(0,0,0,.55));
+            animation:raceMove var(--race-duration) cubic-bezier(.18,.8,.2,1) forwards;
+        }}
+        .battle-speed {{
+            position:absolute; right:0; top:34px;
+            font:700 .72rem 'JetBrains Mono',monospace; padding:.28rem .55rem;
+            border-radius:999px; background:rgba(0,0,0,.55);
+            border:1px solid rgba(255,255,255,.10);
+        }}
+        .battle-speed.a {{ color:#FF5A1F; }}
+        .battle-speed.b {{ color:#2FD4C0; }}
+        .battle-result {{ text-align:center; padding:1.1rem 1rem .4rem; }}
+        .battle-result .cup {{ font-size:2rem; }}
+        .battle-result .winner-text {{
+            font:400 2.5rem/1 'Bebas Neue',sans-serif;
+            color:#FF5A1F; letter-spacing:.05em;
+        }}
+        .battle-result .winner-meta {{
+            margin-top:.35rem; color:#7f8a93;
+            font:600 .7rem 'JetBrains Mono',monospace; letter-spacing:.08em;
+        }}
+        .real-photo-fallback {{
+            height:220px; display:flex; align-items:center; justify-content:center;
+            text-align:center; color:#68727b; border:1px dashed rgba(255,255,255,.10);
+            border-radius:12px; background:#090b0e;
+            font:600 .72rem 'JetBrains Mono',monospace; padding:1rem;
+        }}
+        @keyframes raceMove {{
+            from {{ transform:translateX(0); }}
+            to {{ transform:translateX(calc(100% - 170px)); }}
+        }}
+        @media (max-width: 760px) {{
+            .battle-stage {{ min-height:320px; }}
+            .battle-track {{ left:12%; right:5%; }}
+            .battle-car-real {{ width:125px; }}
+            @keyframes raceMove {{
+                to {{ transform:translateX(calc(100% - 125px)); }}
+            }}
+        }}
+
         @keyframes statusPulse {{ 50% {{ opacity:.35; transform:scale(.7); }} }}
         @keyframes speedIn {{ from {{ opacity:0; transform:translateY(15px) scale(.92); }} to {{ opacity:1; transform:none; }} }}
         @keyframes rpmFill {{ from {{ transform:scaleX(0); }} to {{ transform:scaleX(1); }} }}
@@ -633,7 +674,7 @@ def render_hero():
             <p class="sub">Build a vehicle configuration, predict its engine output, then read the result like a real performance instrument cluster.</p>
             <div class="revora-status">
                 <span class="status-dot"></span> SYSTEM ONLINE
-                <span class="status-sep">|</span> MODEL YEAR RANGE: <b>2026</b>
+                <span class="status-sep">|</span> MODEL YEAR RANGE: <b>1950–2026</b>
             </div>
         </div>
         """,
@@ -702,135 +743,105 @@ def render_footer():
 
 
 # ============================================================================
-# STYLIZED 3D-LOOKING VEHICLE VISUALIZATION (procedural, Plotly WebGL)
+# REAL VEHICLE PHOTOS
 # ============================================================================
-# NOTE: This is a stylized, procedurally generated "AI vehicle visualization",
-# not a manufacturer CAD model and not a copyrighted logo/design. Shape reacts
-# to body type / weight / performance so every configuration looks distinct.
+# The app uses real photographs resolved from Wikimedia's public APIs.
+# No procedural/3D car is generated anymore.
 
-def _box(x0, x1, y0, y1, z0, z1):
-    """Return vertices/faces (i,j,k) for a rectangular box, for Mesh3d."""
-    xs = [x0, x1, x1, x0, x0, x1, x1, x0]
-    ys = [y0, y0, y1, y1, y0, y0, y1, y1]
-    zs = [z0, z0, z0, z0, z1, z1, z1, z1]
-    i = [0, 0, 4, 4, 0, 0, 1, 1, 2, 2, 3, 3]
-    j = [1, 2, 5, 6, 1, 5, 2, 6, 3, 7, 0, 4]
-    k = [2, 3, 6, 7, 5, 4, 6, 5, 7, 6, 4, 7]
-    return xs, ys, zs, i, j, k
+@st.cache_data(ttl=86400, show_spinner=False)
+def get_car_image_url(manufacturer: str, brand: str, year=None, body_type=None) -> str:
+    manufacturer = str(manufacturer or "").strip()
+    brand = str(brand or "").strip()
+    try:
+        year_text = str(int(year)) if year is not None else ""
+    except Exception:
+        year_text = ""
 
-
-def render_vehicle_visual(manufacturer: str, brand: str, body_type: str, weight: float,
-                           top_speed: float, accel: float, gear_type: str, height_px: int = 320):
-    """Procedural stylized 3D car built from primitive boxes; proportions vary by body type."""
-    c1, _ = brand_color(f"{manufacturer}{brand}")
-    body_type_key = (body_type or "").strip().lower()
-
-    # Base proportions
-    length, width, cabin_h, ground_clear = 4.2, 1.8, 0.55, 0.16
-
-    if "suv" in body_type_key or "pickup" in body_type_key or "van" in body_type_key:
-        cabin_h, ground_clear, width = 0.85, 0.30, 1.95
-    elif "coupe" in body_type_key or "convertible" in body_type_key:
-        cabin_h, ground_clear = 0.42, 0.11
-    elif "hatchback" in body_type_key:
-        length, cabin_h = 3.7, 0.62
-    elif "sedan" in body_type_key:
-        length, cabin_h = 4.5, 0.5
-
-    # Weight nudges width/length slightly so heavier cars look bulkier.
-    weight = weight or 1500.0
-    bulk = np.clip((weight - 1200) / 1800, -0.15, 0.35)
-    width += bulk * 0.25
-    length += bulk * 0.4
-
-    wheel_r = 0.32 + (0.05 if "suv" in body_type_key or "pickup" in body_type_key else 0.0)
-
-    fig = go.Figure()
-
-    # Ground shadow
-    theta = np.linspace(0, 2 * np.pi, 40)
-    shadow_x = (length / 2 + 0.2) * np.cos(theta)
-    shadow_y = (width / 2 + 0.15) * np.sin(theta)
-    fig.add_trace(go.Scatter3d(
-        x=shadow_x, y=shadow_y, z=np.zeros_like(shadow_x),
-        mode="lines", surfaceaxis=2, surfacecolor="rgba(0,0,0,0.45)",
-        line=dict(color="rgba(0,0,0,0)"), showlegend=False, hoverinfo="skip",
-    ))
-
-    # Lower body
-    xs, ys, zs, i, j, k = _box(-length / 2, length / 2, -width / 2, width / 2,
-                                ground_clear, ground_clear + cabin_h * 0.55)
-    fig.add_trace(go.Mesh3d(x=xs, y=ys, z=zs, i=i, j=j, k=k,
-                             color=c1, opacity=0.96, flatshading=True,
-                             lighting=dict(ambient=0.55, diffuse=0.75, specular=0.9, roughness=0.25),
-                             lightposition=dict(x=100, y=200, z=300),
-                             name="Body", showlegend=False, hoverinfo="skip"))
-
-    # Cabin / roof (skipped visually lowered for convertible)
-    if "convertible" not in body_type_key:
-        cx0, cx1 = -length / 4.6, length / 3.2
-        cz0 = ground_clear + cabin_h * 0.55
-        cz1 = cz0 + cabin_h * 0.62
-        xs, ys, zs, i, j, k = _box(cx0, cx1, -width / 2 + 0.12, width / 2 - 0.12, cz0, cz1)
-        fig.add_trace(go.Mesh3d(x=xs, y=ys, z=zs, i=i, j=j, k=k,
-                                 color="#1b1f24", opacity=0.9, flatshading=True,
-                                 lighting=dict(ambient=0.5, diffuse=0.6, specular=0.6),
-                                 name="Cabin", showlegend=False, hoverinfo="skip"))
-
-    # Pickup cargo bed cut-out illusion: small raised rails at the rear
-    if "pickup" in body_type_key:
-        bx0, bx1 = -length / 2 + 0.1, -length / 8
-        bz0 = ground_clear + cabin_h * 0.55
-        bz1 = bz0 + cabin_h * 0.35
-        xs, ys, zs, i, j, k = _box(bx0, bx1, -width / 2 + 0.05, width / 2 - 0.05, bz0, bz1)
-        fig.add_trace(go.Mesh3d(x=xs, y=ys, z=zs, i=i, j=j, k=k,
-                                 color="#2a2f36", opacity=0.85, flatshading=True,
-                                 name="Bed", showlegend=False, hoverinfo="skip"))
-
-    # Wheels (4 cylinders approximated with disks via scatter3d markers for simplicity/perf)
-    wheel_positions = [
-        (length / 2 - wheel_r - 0.25, width / 2 - 0.05),
-        (length / 2 - wheel_r - 0.25, -width / 2 + 0.05),
-        (-length / 2 + wheel_r + 0.25, width / 2 - 0.05),
-        (-length / 2 + wheel_r + 0.25, -width / 2 + 0.05),
+    queries = [
+        f"{manufacturer} {brand} {year_text} automobile",
+        f"{manufacturer} {brand} car",
+        f"{brand} automobile",
     ]
-    for wx, wy in wheel_positions:
-        theta = np.linspace(0, 2 * np.pi, 16)
-        ring_y = wy + 0.01 * np.sign(wy)
-        fig.add_trace(go.Scatter3d(
-            x=wx + wheel_r * np.cos(theta), y=np.full(16, ring_y),
-            z=wheel_r + wheel_r * np.sin(theta),
-            mode="lines", line=dict(color="#111418", width=10),
-            surfaceaxis=1, surfacecolor="#111418",
-            showlegend=False, hoverinfo="skip",
-        ))
 
-    # Headlights / taillights as bright markers
-    fig.add_trace(go.Scatter3d(
-        x=[length / 2, length / 2, -length / 2, -length / 2],
-        y=[width / 2 - 0.18, -width / 2 + 0.18, width / 2 - 0.18, -width / 2 + 0.18],
-        z=[ground_clear + cabin_h * 0.35] * 4,
-        mode="markers",
-        marker=dict(size=5, color=[COLORS["telemetry"], COLORS["telemetry"], COLORS["redline"], COLORS["redline"]]),
-        showlegend=False, hoverinfo="skip",
-    ))
+    for query in queries:
+        try:
+            params = urlencode({
+                "action": "query", "generator": "search", "gsrsearch": query,
+                "gsrnamespace": 0, "gsrlimit": 6, "prop": "pageimages",
+                "piprop": "thumbnail", "pithumbsize": 1200, "format": "json",
+            })
+            req = Request(
+                f"https://en.wikipedia.org/w/api.php?{params}",
+                headers={"User-Agent": "REVORA-Automotive-App/1.0"},
+            )
+            with urlopen(req, timeout=5) as response:
+                payload = json.loads(response.read().decode("utf-8"))
 
-    max_dim = max(length, width) * 0.95
-    fig.update_layout(
-        height=height_px,
-        margin=dict(l=0, r=0, t=0, b=0),
-        paper_bgcolor="rgba(0,0,0,0)",
-        scene=dict(
-            xaxis=dict(visible=False, range=[-max_dim, max_dim]),
-            yaxis=dict(visible=False, range=[-max_dim, max_dim]),
-            zaxis=dict(visible=False, range=[0, max_dim]),
-            aspectmode="cube",
-            camera=dict(eye=dict(x=1.55, y=1.35, z=0.85)),
-            bgcolor="rgba(0,0,0,0)",
-        ),
-        showlegend=False,
-    )
-    return fig
+            pages = payload.get("query", {}).get("pages", {})
+            preferred = []
+            fallback = []
+            for page in pages.values():
+                thumb = page.get("thumbnail", {}).get("source")
+                if not thumb:
+                    continue
+                title = str(page.get("title", "")).lower()
+                if "logo" in title or "emblem" in title or "company" in title:
+                    continue
+                if brand.lower() in title or manufacturer.lower() in title:
+                    preferred.append(thumb)
+                else:
+                    fallback.append(thumb)
+            if preferred:
+                return preferred[0]
+            if fallback:
+                return fallback[0]
+        except Exception:
+            continue
+
+    for query in queries:
+        try:
+            params = urlencode({
+                "action": "query", "generator": "search", "gsrsearch": query,
+                "gsrnamespace": 6, "gsrlimit": 8, "prop": "imageinfo",
+                "iiprop": "url", "iiurlwidth": 1200, "format": "json",
+            })
+            req = Request(
+                f"https://commons.wikimedia.org/w/api.php?{params}",
+                headers={"User-Agent": "REVORA-Automotive-App/1.0"},
+            )
+            with urlopen(req, timeout=5) as response:
+                payload = json.loads(response.read().decode("utf-8"))
+
+            pages = payload.get("query", {}).get("pages", {})
+            for page in pages.values():
+                title = str(page.get("title", "")).lower()
+                if any(x in title for x in ("logo", "emblem", "badge", "icon")):
+                    continue
+                info = page.get("imageinfo", [])
+                if info:
+                    image_url = info[0].get("thumburl") or info[0].get("url")
+                    if image_url:
+                        return image_url
+        except Exception:
+            continue
+
+    return ""
+
+
+def render_real_car_photo(manufacturer: str, brand: str, year=None, body_type=None, height_px: int = 260, caption: bool = True):
+    url = get_car_image_url(manufacturer, brand, year, body_type)
+    if url:
+        st.image(
+            url,
+            caption=(f"{manufacturer} {brand} · {year}" if caption and year is not None else None),
+            use_container_width=True,
+        )
+    else:
+        st.markdown(
+            f'<div class="real-photo-fallback" style="height:{height_px}px;">'
+            f'REAL PHOTO NOT FOUND<br>{manufacturer} {brand}</div>',
+            unsafe_allow_html=True,
+        )
 
 
 # ============================================================================
@@ -845,13 +856,7 @@ def render_vehicle_selector(dataset: pd.DataFrame, key_prefix="pred") -> dict:
     st.markdown("<div class='ap-card-title'>🚗 Vehicle Identity</div>", unsafe_allow_html=True)
 
     year_series = pd.to_numeric(dataset["Model Year"], errors="coerce").dropna()
-    if year_series.empty:
-        min_model_year, max_model_year = 2020, 2026
-    else:
-        min_model_year = int(year_series.min())
-        max_model_year = 2026
-        if min_model_year > max_model_year:
-            min_model_year = max_model_year
+    min_model_year, max_model_year = MIN_YEAR, MAX_YEAR
 
     manufacturers = safe_unique(dataset, "Manufacturer", ["Unknown"])
     default_idx = manufacturers.index("Mercedes-Benz") if "Mercedes-Benz" in manufacturers else 0
@@ -868,8 +873,12 @@ def render_vehicle_selector(dataset: pd.DataFrame, key_prefix="pred") -> dict:
 
     pool = dataset[(dataset["Manufacturer"] == manufacturer) & (dataset["Brand"] == brand)].copy()
     pool["_year_numeric"] = pd.to_numeric(pool["Model Year"], errors="coerce")
-    available_years = sorted(pool["_year_numeric"].dropna().astype(int).loc[lambda x: x <= 2026].unique().tolist())
-    default_year = int(np.clip(2026, min_model_year, max_model_year))
+    available_years = sorted(
+        pool["_year_numeric"].dropna().astype(int)
+        .loc[lambda x: x.between(MIN_YEAR, MAX_YEAR)]
+        .unique().tolist()
+    )
+    default_year = MAX_YEAR
 
     model_year = st.number_input(
         "Model Year",
@@ -879,12 +888,15 @@ def render_vehicle_selector(dataset: pd.DataFrame, key_prefix="pred") -> dict:
         step=1,
         format="%d",
         key=f"{key_prefix}_year",
-        help=f"Type a year or use +/-. Dataset starts at {min_model_year}; REVORA supports through 2026.",
+        help=f"Select any model year from {MIN_YEAR} to {MAX_YEAR}. If no exact dataset row exists, the selected year is still used for prediction.",
     )
     model_year = int(model_year)
 
     if available_years and model_year not in available_years:
-        st.warning(f"{brand} has no exact {model_year} record in the dataset. Available years: {', '.join(map(str, available_years))}")
+        st.caption(
+            f"No exact {model_year} record exists for this model in the dataset; "
+            "the selected year is still used for prediction."
+        )
 
     st.markdown(
         f"<div style='color:{COLORS['text_dim']};font-size:.78rem;margin-top:-8px;margin-bottom:8px;'>"
@@ -967,16 +979,15 @@ def render_vehicle_selector(dataset: pd.DataFrame, key_prefix="pred") -> dict:
 
 
 def render_vehicle_preview(values: dict, dataset: pd.DataFrame):
-    """Right-hand panel shown BEFORE prediction: no empty space, full spec + 3D preview."""
+    """Right-hand panel shown before prediction using a real vehicle photograph."""
     st.markdown("<div class='ap-card'>", unsafe_allow_html=True)
-    st.markdown("<div class='ap-card-title'>\U0001F441\uFE0F Vehicle Preview</div>", unsafe_allow_html=True)
+    st.markdown("<div class='ap-card-title'>👁️ Vehicle Preview</div>", unsafe_allow_html=True)
 
-    fig = render_vehicle_visual(
-        values["Manufacturer"], values["Brand"], values["Body Type"], values["Weight"],
-        values["Top speed (kph)"], values["Performance 0-100 kph (sec)"], values["gear_type"],
-        height_px=280,
+    render_real_car_photo(
+        values["Manufacturer"], values["Brand"], values["Model Year"],
+        values["Body Type"], height_px=280,
     )
-    st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
+
     st.markdown(
         f"<div style='text-align:center;'><div class='ap-display' style='font-size:1.4rem;'>"
         f"{values['Manufacturer']}</div><div style='color:{COLORS['text_dim']};'>{values['Brand']} "
@@ -985,12 +996,11 @@ def render_vehicle_preview(values: dict, dataset: pd.DataFrame):
     )
     st.markdown("<hr class='ap-div'>", unsafe_allow_html=True)
 
-    ptw = values["Weight"] and (dataset["Power (hp)"].median() / values["Weight"] * 1000)
     spec_rows = [
         ("Body Type", values["Body Type"]),
-        ("Gearbox", f"{values['gear_type']} \u2014 {GEAR_TYPE_LABELS.get(values['gear_type'], values['gear_type'])}"),
+        ("Gearbox", f"{values['gear_type']} — {GEAR_TYPE_LABELS.get(values['gear_type'], values['gear_type'])}"),
         ("Weight", f"{values['Weight']:,.0f} kg"),
-        ("0\u2013100 km/h", f"{values['Performance 0-100 kph (sec)']:.1f} s"),
+        ("0–100 km/h", f"{values['Performance 0-100 kph (sec)']:.1f} s"),
         ("Top Speed", f"{values['Top speed (kph)']:,.0f} km/h"),
         ("Fuel Economy", f"{values['Fuel Econ (L/100km)']:.1f} L/100km ({values['Fuel Econ (km/L)']:.1f} km/L)"),
         ("Approx Cost", f"AED {values['Approx Cost']:,.0f}"),
@@ -1001,12 +1011,6 @@ def render_vehicle_preview(values: dict, dataset: pd.DataFrame):
     )
     st.markdown(rows_html, unsafe_allow_html=True)
     st.markdown("</div>", unsafe_allow_html=True)
-
-    st.markdown(
-        "<div class='ap-empty-state'>\u26A1 Ready to predict.<br>"
-        "Click <b>PREDICT ENGINE POWER</b> to estimate this configuration's horsepower.</div>",
-        unsafe_allow_html=True,
-    )
 
 
 # ============================================================================
@@ -1076,57 +1080,16 @@ def render_performance_dna(hp: float, values: dict, dataset: pd.DataFrame):
 
 
 
-def render_instrument_cluster(hp: float, values: dict):
-    top_speed = float(values.get("Top speed (kph)", 0))
-    accel = float(values.get("Performance 0-100 kph (sec)", 0))
-    rpm_pct = int(np.clip((hp / 900.0) * 100, 8, 100))
-    cluster_speed = int(np.clip(top_speed, 0, 420))
-    gauge_fill_deg = 300 * rpm_pct / 100
-    needle_angle = -130 + (260 * rpm_pct / 100)
-    st.markdown(
-        f"""
-        <div class="revora-cluster predict-reveal">
-            <div class="cluster-top">
-                <div class="cluster-label">REVORA / PERFORMANCE CLUSTER</div>
-                <div class="cluster-mode">● DRIVE READY</div>
-            </div>
-            <div class="gauge-wrap">
-                <div class="gauge-dial" style="--gauge-fill:{gauge_fill_deg:.0f}deg;">
-                    <div class="gauge-needle" style="--needle-angle:{needle_angle:.0f}deg;"></div>
-                    <div class="gauge-center">
-                        <div class="val">{hp:,.0f}</div>
-                        <div class="lbl">HORSEPOWER</div>
-                    </div>
-                </div>
-            </div>
-            <div class="cluster-speed">{cluster_speed}<span>KM/H</span></div>
-            <div class="cluster-sub">ESTIMATED PERFORMANCE OUTPUT</div>
-            <div class="cluster-grid">
-                <div class="cluster-cell"><div class="v">{hp:,.0f}</div><div class="k">HORSEPOWER</div></div>
-                <div class="cluster-cell"><div class="v">{hp*0.7457:,.0f}</div><div class="k">KW</div></div>
-                <div class="cluster-cell"><div class="v">{accel:.1f}s</div><div class="k">0–100 KM/H</div></div>
-            </div>
-            <div class="rpm-wrap">
-                <div class="cluster-label">POWER LOAD / RPM ZONE</div>
-                <div class="rpm-track"><div class="rpm-fill" style="width:{rpm_pct}%"></div></div>
-                <div class="rpm-scale"><span>0</span><span>2K</span><span>4K</span><span>6K</span><span>8K+</span></div>
-            </div>
-        </div>
-        """,
-        unsafe_allow_html=True,
-    )
-
 def render_prediction_result(hp: float, results_df, dataset: pd.DataFrame, values: dict, feature_importance=None):
     kw = hp * 0.7457
     tier_label, tier_emoji = classify_performance(hp)
-    render_instrument_cluster(hp, values)
     ptw = hp / values["Weight"] * 1000 if values.get("Weight") else float("nan")
 
-    fig = render_vehicle_visual(
-        values["Manufacturer"], values["Brand"], values["Body Type"], values["Weight"],
-        values["Top speed (kph)"], values["Performance 0-100 kph (sec)"], values["gear_type"], height_px=240,
+    # Keep the prediction dashboard/gauge style from the reference screenshot.
+    render_real_car_photo(
+        values["Manufacturer"], values["Brand"], values["Model Year"],
+        values["Body Type"], height_px=240,
     )
-    st.plotly_chart(fig, use_container_width=True, config={"displayModeBar":False})
 
     st.markdown(
         f"""<div class="ap-result"><div class="label">Predicted Power</div>
@@ -1321,11 +1284,10 @@ def _car_label(row) -> str:
 def render_car_card(row: pd.Series, title: str):
     st.markdown("<div class='ap-card'>", unsafe_allow_html=True)
     st.markdown(f"<div class='ap-card-title'>{title}</div>", unsafe_allow_html=True)
-    fig = render_vehicle_visual(row["Manufacturer"], row["Brand"], row.get("Body Type", "Sedan"),
-                                 row.get("Weight", 1500), row.get("Top speed (kph)", 200),
-                                 row.get("Performance 0-100 kph (sec)", 8), row.get("gear_type", "A"),
-                                 height_px=220)
-    st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
+    render_real_car_photo(
+        row["Manufacturer"], row["Brand"], int(row["Model Year"]),
+        row.get("Body Type", "Sedan"), height_px=220,
+    )
     st.markdown(
         f"<div style='text-align:center;'><div class='ap-display' style='font-size:1.3rem;'>"
         f"{row['Manufacturer']}</div><div style='color:{COLORS['text_dim']};'>{row['Brand']} "
@@ -1334,11 +1296,11 @@ def render_car_card(row: pd.Series, title: str):
     )
     st.markdown("<hr class='ap-div'>", unsafe_allow_html=True)
     spec_rows = [
-        ("Body Type", row.get("Body Type", "\u2014")),
+        ("Body Type", row.get("Body Type", "—")),
         ("Power", f"{row.get('Power (hp)', float('nan')):,.0f} HP"),
         ("Weight", f"{row.get('Weight', float('nan')):,.0f} kg"),
         ("Top Speed", f"{row.get('Top speed (kph)', float('nan')):,.0f} km/h"),
-        ("0\u2013100 km/h", f"{row.get('Performance 0-100 kph (sec)', float('nan')):.1f} s"),
+        ("0–100 km/h", f"{row.get('Performance 0-100 kph (sec)', float('nan')):.1f} s"),
         ("Fuel Economy", f"{row.get('Fuel Econ (km/L)', float('nan')):.1f} km/L"),
     ]
     rows_html = "".join(
@@ -1350,36 +1312,66 @@ def render_car_card(row: pd.Series, title: str):
 
 
 def render_power_battle(dataset: pd.DataFrame):
+    """Real-photo head-to-head battle. Faster cars visibly finish first."""
     st.markdown("<div class='ap-card'>", unsafe_allow_html=True)
     st.markdown("<div class='ap-card-title'>⚔️ Choose Your Fighters</div>", unsafe_allow_html=True)
+
     manufacturers = safe_unique(dataset, "Manufacturer", ["Unknown"])
     ca, cb = st.columns(2)
 
     def choose_battle_car(side, default_mfr_index=0):
         with (ca if side == "A" else cb):
             st.markdown(f"**Car {side}**")
-            mfr_key = f"battle_mfr_{side.lower()}"
-            brand_key = f"battle_brand_{side.lower()}"
-            year_key = f"battle_year_{side.lower()}"
-            mfr = st.selectbox(f"Manufacturer ({side})", manufacturers, index=min(default_mfr_index, len(manufacturers)-1), key=mfr_key)
-            brands = sorted(dict.fromkeys(str(x).strip() for x in safe_unique(dataset[dataset["Manufacturer"] == mfr], "Brand", ["Unknown"]) if str(x).strip()), key=str.lower)
-            brands = brands or ["Unknown"]
-            brand = st.selectbox(f"Model ({side})", brands, key=brand_key)
-            pool = dataset[(dataset["Manufacturer"] == mfr) & (dataset["Brand"] == brand)].copy()
+            mfr = st.selectbox(
+                f"Manufacturer ({side})", manufacturers,
+                index=min(default_mfr_index, len(manufacturers)-1),
+                key=f"battle_mfr_{side.lower()}",
+            )
+            brands = sorted(
+                dict.fromkeys(
+                    str(x).strip()
+                    for x in safe_unique(
+                        dataset[dataset["Manufacturer"] == mfr], "Brand", ["Unknown"]
+                    )
+                    if str(x).strip()
+                ), key=str.lower
+            ) or ["Unknown"]
+            brand = st.selectbox(f"Model ({side})", brands, key=f"battle_brand_{side.lower()}")
+
+            pool = dataset[
+                (dataset["Manufacturer"] == mfr) & (dataset["Brand"] == brand)
+            ].copy()
             pool["_year_numeric"] = pd.to_numeric(pool["Model Year"], errors="coerce")
-            years = sorted(pool["_year_numeric"].dropna().astype(int).loc[lambda x: x <= 2026].unique().tolist())
-            global_years = pd.to_numeric(dataset["Model Year"], errors="coerce").dropna().astype(int)
-            min_year = int(global_years.min()) if not global_years.empty else 2020
-            default_year = int(np.clip(2026, min_year, 2026))
-            year = st.number_input(f"Model Year ({side})", min_value=min_year, max_value=2026, value=int(default_year), step=1, format="%d", key=year_key)
-            year = int(year)
+
+            year = int(st.number_input(
+                f"Model Year ({side})", min_value=MIN_YEAR, max_value=MAX_YEAR,
+                value=MAX_YEAR, step=1, format="%d",
+                key=f"battle_year_{side.lower()}",
+                help=f"Selectable range: {MIN_YEAR}–{MAX_YEAR}.",
+            ))
+
             rows = pool[pool["_year_numeric"] == year]
             if rows.empty:
-                st.warning(f"No exact {year} record for {mfr} {brand}. Available years: {', '.join(map(str, years)) if years else 'none'}")
-                rows = pool.sort_values("_year_numeric").tail(1)
+                valid = pool[pool["_year_numeric"].between(MIN_YEAR, MAX_YEAR)]
+                if not valid.empty:
+                    nearest_idx = (valid["_year_numeric"] - year).abs().idxmin()
+                    nearest_year = int(valid.loc[nearest_idx, "_year_numeric"])
+                    rows = valid.loc[[nearest_idx]]
+                    st.caption(
+                        f"No exact {year} record. Using the nearest dataset record: {nearest_year}."
+                    )
+                else:
+                    rows = pool.tail(1)
+
             if len(rows) > 1:
                 ids = rows["_car_id"].tolist()
-                cid = st.selectbox(f"Configuration ({side})", ids, format_func=lambda x: f"{x} — {rows.loc[rows['_car_id']==x,'Power (hp)'].iloc[0]:.0f} HP", key=f"battle_dup_{side.lower()}")
+                cid = st.selectbox(
+                    f"Configuration ({side})", ids,
+                    format_func=lambda x: (
+                        f"{x} — {rows.loc[rows['_car_id']==x,'Power (hp)'].iloc[0]:.0f} HP"
+                    ),
+                    key=f"battle_dup_{side.lower()}",
+                )
                 row = rows[rows["_car_id"] == cid].iloc[0]
             else:
                 row = rows.iloc[0]
@@ -1390,56 +1382,35 @@ def render_power_battle(dataset: pd.DataFrame):
     st.markdown("</div>", unsafe_allow_html=True)
 
     if row_a["_car_id"] == row_b["_car_id"]:
-        st.warning("Car A and Car B are the same vehicle record — pick a different Car B for a real battle.")
+        st.warning("Car A and Car B are the same vehicle record — pick a different Car B.")
 
     c1, c2 = st.columns(2)
-    with c1: render_car_card(row_a, "🛡️ Car A")
-    with c2: render_car_card(row_b, "🛡️ Car B")
+    with c1:
+        render_car_card(row_a, "🛡️ Car A")
+    with c2:
+        render_car_card(row_b, "🛡️ Car B")
 
-    # Head-to-head metrics
     st.markdown("<div class='ap-card'>", unsafe_allow_html=True)
     st.markdown("<div class='ap-card-title'>📊 Head-to-Head Metrics</div>", unsafe_allow_html=True)
     metrics_data = []
     for col, direction, unit in COMPARISON_METRICS:
         va, vb = row_a.get(col, np.nan), row_b.get(col, np.nan)
-        if direction == "higher": better = "A" if va > vb else ("B" if vb > va else "Tie")
-        elif direction == "lower": better = "A" if va < vb else ("B" if vb < va else "Tie")
-        else: better = "—"
-        metrics_data.append({"Metric": col, "Car A": va, "Car B": vb, "Unit": unit, "Better": better if direction != "lower_neutral" else "Context"})
+        if direction == "higher":
+            better = "A" if va > vb else ("B" if vb > va else "Tie")
+        elif direction == "lower":
+            better = "A" if va < vb else ("B" if vb < va else "Tie")
+        else:
+            better = "—"
+        metrics_data.append({
+            "Metric": col,
+            "Car A": "—" if pd.isna(va) else va,
+            "Car B": "—" if pd.isna(vb) else vb,
+            "Unit": unit,
+            "Better": better,
+        })
     st.dataframe(pd.DataFrame(metrics_data), hide_index=True, use_container_width=True)
     st.markdown("</div>", unsafe_allow_html=True)
 
-    # Normalized radar
-    st.markdown("<div class='ap-card'>", unsafe_allow_html=True)
-    st.markdown("<div class='ap-card-title'>Performance DNA — Head to Head</div>", unsafe_allow_html=True)
-    radar_labels, radar_a, radar_b = [], [], []
-    for col, direction, unit in COMPARISON_METRICS:
-        series = pd.to_numeric(dataset[col], errors="coerce").dropna()
-        if series.empty or series.max() == series.min(): continue
-        higher = direction != "lower"
-        radar_labels.append(col)
-        radar_a.append(_safe_norm(row_a.get(col, np.nan), series, higher))
-        radar_b.append(_safe_norm(row_b.get(col, np.nan), series, higher))
-    if radar_labels:
-        fig = go.Figure()
-        fig.add_trace(go.Scatterpolar(r=radar_a+[radar_a[0]], theta=radar_labels+[radar_labels[0]], fill="toself", name="Car A", line_color=COLORS["accent"], fillcolor="rgba(255,90,31,.15)"))
-        fig.add_trace(go.Scatterpolar(r=radar_b+[radar_b[0]], theta=radar_labels+[radar_labels[0]], fill="toself", name="Car B", line_color=COLORS["telemetry"], fillcolor="rgba(47,212,192,.12)"))
-        fig.update_layout(polar=dict(radialaxis=dict(visible=True,range=[0,100]),bgcolor="rgba(0,0,0,0)"),paper_bgcolor="rgba(0,0,0,0)",font={"color":COLORS["text"]},height=400)
-        st.plotly_chart(fig,use_container_width=True,config={"displayModeBar":False})
-    st.markdown("</div>", unsafe_allow_html=True)
-
-    # Power-to-weight
-    ptw_a = row_a["Power (hp)"] / row_a["Weight"] * 1000 if row_a.get("Weight") else np.nan
-    ptw_b = row_b["Power (hp)"] / row_b["Weight"] * 1000 if row_b.get("Weight") else np.nan
-    st.markdown("<div class='ap-card'>", unsafe_allow_html=True)
-    st.markdown("<div class='ap-card-title'>Power-to-Weight</div>", unsafe_allow_html=True)
-    fig = go.Figure(go.Bar(x=["Car A","Car B"],y=[ptw_a,ptw_b],marker_color=[COLORS["accent"],COLORS["telemetry"]],text=[f"{ptw_a:.1f}",f"{ptw_b:.1f}"],textposition="outside"))
-    fig.update_layout(paper_bgcolor="rgba(0,0,0,0)",plot_bgcolor="rgba(0,0,0,0)",font={"color":COLORS["text"]},height=300,showlegend=False)
-    st.plotly_chart(fig,use_container_width=True,config={"displayModeBar":False})
-    st.markdown("</div>", unsafe_allow_html=True)
-
-
-    # REVORA race result: the faster car wins.
     speed_a = float(row_a.get("Top speed (kph)", 0) or 0)
     speed_b = float(row_b.get("Top speed (kph)", 0) or 0)
     accel_a = float(row_a.get("Performance 0-100 kph (sec)", 99) or 99)
@@ -1462,24 +1433,48 @@ def render_power_battle(dataset: pd.DataFrame):
         else "Perfect Tie"
     )
 
+    # Realistic animation: both cars cover the same track, but their durations
+    # are inversely proportional to actual top speed. The faster car therefore
+    # moves ahead instead of both cars always reaching the same point together.
+    max_speed = max(speed_a, speed_b, 1.0)
+    base_duration = 3.6
+    duration_a = base_duration * max_speed / max(speed_a, 1.0)
+    duration_b = base_duration * max_speed / max(speed_b, 1.0)
+
+    img_a = get_car_image_url(row_a["Manufacturer"], row_a["Brand"], int(row_a["Model Year"]), row_a.get("Body Type"))
+    img_b = get_car_image_url(row_b["Manufacturer"], row_b["Brand"], int(row_b["Model Year"]), row_b.get("Body Type"))
+
+    def html_image(url, label):
+        if url:
+            return f'<img class="battle-car-real" src="{url}" alt="{label}">'
+        return (
+            f'<div class="battle-car-real" style="display:flex;align-items:center;'
+            f'justify-content:center;background:#151a1f;color:#8b939c;'
+            f'font:600 .65rem JetBrains Mono,monospace;padding:10px;text-align:center;">'
+            f'{label}</div>'
+        )
+
     st.markdown("<div class='ap-card'>", unsafe_allow_html=True)
     st.markdown("<div class='ap-card-title'>🏁 REVORA SPEED BATTLE</div>", unsafe_allow_html=True)
     st.markdown(
         f"""
         <div class="battle-stage">
+            <div class="battle-start"></div>
+            <div class="battle-finish"></div>
             <div class="battle-lane one"></div>
             <div class="battle-lane two"></div>
-            <div class="speed-streak one"></div>
-            <div class="speed-streak two"></div>
-            <div class="speed-streak three"></div>
-            <div class="speed-streak four"></div>
+
             <div class="battle-name a">CAR A · {speed_a:.0f} KM/H</div>
             <div class="battle-name b">CAR B · {speed_b:.0f} KM/H</div>
-            <div class="battle-car a">
-                <div class="battle-wheel w1"></div><div class="battle-wheel w2"></div>
+
+            <div class="battle-track a" style="--race-duration:{duration_a:.2f}s;">
+                {html_image(img_a, f"{row_a['Manufacturer']} {row_a['Brand']}")}
+                <span class="battle-speed a">{speed_a:.0f} km/h</span>
             </div>
-            <div class="battle-car b">
-                <div class="battle-wheel w1"></div><div class="battle-wheel w2"></div>
+
+            <div class="battle-track b" style="--race-duration:{duration_b:.2f}s;">
+                {html_image(img_b, f"{row_b['Manufacturer']} {row_b['Brand']}")}
+                <span class="battle-speed b">{speed_b:.0f} km/h</span>
             </div>
         </div>
         """,
@@ -1488,7 +1483,7 @@ def render_power_battle(dataset: pd.DataFrame):
 
     if winner == "Tie":
         winner_html = """
-        <div class="winner-pop">
+        <div class="battle-result">
             <div class="cup">⚖️</div>
             <div class="winner-text">PERFECT TIE</div>
             <div class="winner-meta">SAME TOP SPEED · SAME ACCELERATION</div>
@@ -1498,7 +1493,7 @@ def render_power_battle(dataset: pd.DataFrame):
         winning_speed = speed_a if winner == "A" else speed_b
         losing_speed = speed_b if winner == "A" else speed_a
         winner_html = f"""
-        <div class="winner-pop">
+        <div class="battle-result">
             <div class="cup">🏆</div>
             <div class="winner-text">{winner_name}</div>
             <div class="winner-meta">CAR {winner} WINS · {winning_speed:.0f} KM/H vs {losing_speed:.0f} KM/H</div>
@@ -1512,38 +1507,38 @@ def render_power_battle(dataset: pd.DataFrame):
     st.markdown("<div class='ap-card-title'>Live Battle Telemetry</div>", unsafe_allow_html=True)
     a, b, c = st.columns(3)
     with a:
-        st.markdown(f"<div class='ap-metric'><div class='v'>{speed_a:.0f} km/h</div><div class='l'>Car A Top Speed</div></div>", unsafe_allow_html=True)
+        st.markdown(
+            f"<div class='ap-metric'><div class='v'>{speed_a:.0f} km/h</div>"
+            "<div class='l'>Car A Top Speed</div></div>", unsafe_allow_html=True)
     with b:
-        st.markdown(f"<div class='ap-metric'><div class='v'>{speed_b:.0f} km/h</div><div class='l'>Car B Top Speed</div></div>", unsafe_allow_html=True)
+        st.markdown(
+            f"<div class='ap-metric'><div class='v'>{speed_b:.0f} km/h</div>"
+            "<div class='l'>Car B Top Speed</div></div>", unsafe_allow_html=True)
     with c:
         gap = abs(speed_a - speed_b)
-        st.markdown(f"<div class='ap-metric'><div class='v'>{gap:.0f} km/h</div><div class='l'>Speed Gap</div></div>", unsafe_allow_html=True)
+        st.markdown(
+            f"<div class='ap-metric'><div class='v'>{gap:.0f} km/h</div>"
+            "<div class='l'>Speed Gap</div></div>", unsafe_allow_html=True)
     st.markdown("</div>", unsafe_allow_html=True)
 
     if "battle_history" not in st.session_state:
         st.session_state.battle_history = []
+
     signature = f"{row_a['_car_id']}|{row_b['_car_id']}"
     if not any(x["signature"] == signature for x in st.session_state.battle_history):
-        st.session_state.battle_history.insert(
-            0,
-            {
-                "signature": signature,
-                "A": f"{row_a['Manufacturer']} {row_a['Brand']} ({int(row_a['Model Year'])})",
-                "B": f"{row_b['Manufacturer']} {row_b['Brand']} ({int(row_b['Model Year'])})",
-                "Winner": winner_name,
-                "Result": f"{speed_a:.0f}–{speed_b:.0f} km/h",
-            },
-        )
+        st.session_state.battle_history.insert(0, {
+            "signature": signature,
+            "A": f"{row_a['Manufacturer']} {row_a['Brand']} ({int(row_a['Model Year'])})",
+            "B": f"{row_b['Manufacturer']} {row_b['Brand']} ({int(row_b['Model Year'])})",
+            "Winner": winner_name,
+            "Result": f"{speed_a:.0f}–{speed_b:.0f} km/h",
+        })
         st.session_state.battle_history = st.session_state.battle_history[:10]
 
     if st.session_state.battle_history:
         with st.expander("⚔️ Recent Battle History"):
-            st.dataframe(
-                pd.DataFrame(st.session_state.battle_history).drop(columns=["signature"]),
-                hide_index=True,
-                use_container_width=True,
-            )
-
+            history_df = pd.DataFrame(st.session_state.battle_history).drop(columns=["signature"])
+            st.dataframe(history_df.fillna("—"), hide_index=True, use_container_width=True)
 
 
 def apply_filters(dataset: pd.DataFrame) -> pd.DataFrame:
@@ -1560,13 +1555,15 @@ def apply_filters(dataset: pd.DataFrame) -> pd.DataFrame:
             gear_types = safe_unique(dataset, "gear_type")
             pick_gear = st.multiselect("Gear Type", gear_types, default=[], key="flt_gear")
         with c3:
-            year_values = pd.to_numeric(dataset["Model Year"], errors="coerce").dropna()
-            if not year_values.empty:
-                yr_lo, yr_hi = int(year_values.min()), min(int(year_values.max()), 2026)
-            else:
-                yr_lo, yr_hi = 2020, 2026
-            start_year = st.number_input("From Year", min_value=yr_lo, max_value=yr_hi, value=yr_lo, key="flt_yr_start")
-            end_year = st.number_input("To Year", min_value=yr_lo, max_value=yr_hi, value=yr_hi, key="flt_yr_end")
+            yr_lo, yr_hi = MIN_YEAR, MAX_YEAR
+            start_year = st.number_input(
+                "From Year", min_value=MIN_YEAR, max_value=MAX_YEAR,
+                value=MIN_YEAR, key="flt_yr_start"
+            )
+            end_year = st.number_input(
+                "To Year", min_value=MIN_YEAR, max_value=MAX_YEAR,
+                value=MAX_YEAR, key="flt_yr_end"
+            )
 
         if st.button("Clear Filters", key="flt_clear"):
             for k in ["flt_mfr", "flt_body", "flt_origin", "flt_gear"]:
@@ -2092,11 +2089,10 @@ def viz_top_cars(df: pd.DataFrame):
         st.markdown("<div class='ap-card'>", unsafe_allow_html=True)
         c1, c2 = st.columns([1, 2])
         with c1:
-            fig = render_vehicle_visual(row["Manufacturer"], row["Brand"], row.get("Body Type", "Sedan"),
-                                         row.get("Weight", 1500), row.get("Top speed (kph)", 200),
-                                         row.get("Performance 0-100 kph (sec)", 8), row.get("gear_type", "A"),
-                                         height_px=160)
-            st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
+            render_real_car_photo(
+                row["Manufacturer"], row["Brand"], int(row["Model Year"]),
+                row.get("Body Type", "Sedan"), height_px=160,
+            )
         with c2:
             st.markdown(
                 f"<div class='ap-display' style='font-size:1.4rem;'>{row['Manufacturer']} {row['Brand']}</div>"
