@@ -1,5 +1,6 @@
 
 
+
 """
 REVORA
 Machine-learning powered automotive horsepower predictor.
@@ -316,6 +317,30 @@ def inject_css():
         .rpm-track {{ height:8px; border-radius:99px; background:#1a2025; overflow:hidden; box-shadow:inset 0 1px 3px #000; }}
         .rpm-fill {{ height:100%; border-radius:99px; background:linear-gradient(90deg,#2FD4C0 0 55%,#FF5A1F 78%,#FF2D55); transform-origin:left; animation:rpmFill 1.1s ease-out both; }}
         .rpm-scale {{ display:flex; justify-content:space-between; margin-top:.25rem; color:#56616a; font:500 .52rem 'JetBrains Mono',monospace; }}
+        .gauge-wrap {{ position:relative; z-index:1; display:flex; justify-content:center; margin:.9rem 0 .3rem; }}
+        .gauge-dial {{
+            position:relative; width:180px; height:180px; border-radius:50%;
+            background: conic-gradient(from 220deg, #2FD4C0 0deg, #FF5A1F var(--gauge-fill,120deg), rgba(255,255,255,.06) var(--gauge-fill,120deg) 300deg, transparent 300deg 360deg);
+            display:flex; align-items:center; justify-content:center;
+            box-shadow: inset 0 0 25px rgba(0,0,0,.55);
+            animation: dialSweep 1.1s cubic-bezier(.2,.8,.2,1) both;
+        }}
+        .gauge-dial:before {{
+            content:""; position:absolute; width:148px; height:148px; border-radius:50%;
+            background:#0b0e11; box-shadow:inset 0 0 15px rgba(0,0,0,.6);
+        }}
+        .gauge-needle {{
+            position:absolute; width:3px; height:66px; background:linear-gradient(#fff,#FF5A1F);
+            top:24px; left:50%; transform-origin:bottom center;
+            transform:translateX(-50%) rotate(var(--needle-angle,-130deg));
+            border-radius:4px; animation:needleSweep 1.3s cubic-bezier(.2,.8,.2,1) both;
+            box-shadow:0 0 10px rgba(255,90,31,.7);
+        }}
+        .gauge-center {{ position:absolute; z-index:2; text-align:center; }}
+        .gauge-center .val {{ font:400 2.05rem/1 'Bebas Neue',sans-serif; color:#f2f4f6; }}
+        .gauge-center .lbl {{ margin-top:.2rem; font:600 .56rem 'JetBrains Mono',monospace; letter-spacing:.14em; color:#68727b; }}
+        @keyframes dialSweep {{ from {{ opacity:0; transform:scale(.85); }} to {{ opacity:1; transform:scale(1); }} }}
+        @keyframes needleSweep {{ from {{ transform:translateX(-50%) rotate(-130deg); }} to {{ transform:translateX(-50%) rotate(var(--needle-angle,-130deg)); }} }}
         .predict-reveal {{ animation:panelReveal .75s ease-out both; }}
         .battle-stage {{
             position:relative; overflow:hidden; border-radius:22px; min-height:230px; padding:1rem;
@@ -324,6 +349,16 @@ def inject_css():
         }}
         .battle-lane {{ position:absolute; left:4%; right:4%; height:1px; background:rgba(255,255,255,.08); }}
         .battle-lane.one {{ top:38%; }} .battle-lane.two {{ top:68%; }}
+        .speed-streak {{
+            position:absolute; height:2px; width:60px; left:0;
+            background:linear-gradient(90deg,transparent,rgba(255,255,255,.55),transparent);
+            animation:streakMove 1.1s linear infinite;
+        }}
+        .speed-streak.one {{ top:34%; animation-delay:0s; }}
+        .speed-streak.two {{ top:36%; animation-delay:.35s; }}
+        .speed-streak.three {{ top:64%; animation-delay:.15s; }}
+        .speed-streak.four {{ top:66%; animation-delay:.5s; }}
+        @keyframes streakMove {{ 0% {{ transform:translateX(-10%); opacity:0; }} 20% {{ opacity:1; }} 100% {{ transform:translateX(560px); opacity:0; }} }}
         .battle-car {{
             position:absolute; width:170px; height:42px; border-radius:18px 28px 10px 10px;
             background:linear-gradient(180deg,#343c44,#151a1f); border:1px solid rgba(255,255,255,.14);
@@ -834,8 +869,7 @@ def render_vehicle_selector(dataset: pd.DataFrame, key_prefix="pred") -> dict:
     pool = dataset[(dataset["Manufacturer"] == manufacturer) & (dataset["Brand"] == brand)].copy()
     pool["_year_numeric"] = pd.to_numeric(pool["Model Year"], errors="coerce")
     available_years = sorted(pool["_year_numeric"].dropna().astype(int).loc[lambda x: x <= 2026].unique().tolist())
-    default_year = available_years[-1] if available_years else min(max_model_year, max(min_model_year, 2026))
-    default_year = int(np.clip(default_year, min_model_year, max_model_year))
+    default_year = int(np.clip(2026, min_model_year, max_model_year))
 
     model_year = st.number_input(
         "Model Year",
@@ -869,11 +903,14 @@ def render_vehicle_selector(dataset: pd.DataFrame, key_prefix="pred") -> dict:
     gear_types = safe_unique(dataset, "gear_type", ["A"])
     gear_counts = sorted(pd.to_numeric(dataset.get("gear_count", pd.Series(dtype=float)), errors="coerce").dropna().astype(int).unique().tolist()) or [6]
 
-    body_type = segmented_choice("Body Type", body_types, default=body_types[0], key=f"{key_prefix}_body")
-    gear_type = segmented_choice(
-        "Gearbox Type", gear_types, default=gear_types[0], key=f"{key_prefix}_gear",
-        help_="AT=Automatic, M=Manual, AM=Automated Manual, CVT=Continuously Variable",
-    )
+    c1, c2 = st.columns(2)
+    with c1:
+        body_type = st.selectbox("Body Type", body_types, key=f"{key_prefix}_body")
+    with c2:
+        gear_type = st.selectbox(
+            "Gearbox Type", gear_types, key=f"{key_prefix}_gear",
+            help="AT=Automatic, M=Manual, AM=Automated Manual, CVT=Continuously Variable",
+        )
     st.caption(f"Selected gearbox: **{GEAR_TYPE_LABELS.get(gear_type, gear_type)}**")
 
     c1, c2 = st.columns(2)
@@ -1044,12 +1081,23 @@ def render_instrument_cluster(hp: float, values: dict):
     accel = float(values.get("Performance 0-100 kph (sec)", 0))
     rpm_pct = int(np.clip((hp / 900.0) * 100, 8, 100))
     cluster_speed = int(np.clip(top_speed, 0, 420))
+    gauge_fill_deg = 300 * rpm_pct / 100
+    needle_angle = -130 + (260 * rpm_pct / 100)
     st.markdown(
         f"""
         <div class="revora-cluster predict-reveal">
             <div class="cluster-top">
                 <div class="cluster-label">REVORA / PERFORMANCE CLUSTER</div>
                 <div class="cluster-mode">● DRIVE READY</div>
+            </div>
+            <div class="gauge-wrap">
+                <div class="gauge-dial" style="--gauge-fill:{gauge_fill_deg:.0f}deg;">
+                    <div class="gauge-needle" style="--needle-angle:{needle_angle:.0f}deg;"></div>
+                    <div class="gauge-center">
+                        <div class="val">{hp:,.0f}</div>
+                        <div class="lbl">HORSEPOWER</div>
+                    </div>
+                </div>
             </div>
             <div class="cluster-speed">{cluster_speed}<span>KM/H</span></div>
             <div class="cluster-sub">ESTIMATED PERFORMANCE OUTPUT</div>
@@ -1322,7 +1370,7 @@ def render_power_battle(dataset: pd.DataFrame):
             years = sorted(pool["_year_numeric"].dropna().astype(int).loc[lambda x: x <= 2026].unique().tolist())
             global_years = pd.to_numeric(dataset["Model Year"], errors="coerce").dropna().astype(int)
             min_year = int(global_years.min()) if not global_years.empty else 2020
-            default_year = years[-1] if years else min(2026, max(min_year, 2026))
+            default_year = int(np.clip(2026, min_year, 2026))
             year = st.number_input(f"Model Year ({side})", min_value=min_year, max_value=2026, value=int(default_year), step=1, format="%d", key=year_key)
             year = int(year)
             rows = pool[pool["_year_numeric"] == year]
@@ -1421,6 +1469,10 @@ def render_power_battle(dataset: pd.DataFrame):
         <div class="battle-stage">
             <div class="battle-lane one"></div>
             <div class="battle-lane two"></div>
+            <div class="speed-streak one"></div>
+            <div class="speed-streak two"></div>
+            <div class="speed-streak three"></div>
+            <div class="speed-streak four"></div>
             <div class="battle-name a">CAR A · {speed_a:.0f} KM/H</div>
             <div class="battle-name b">CAR B · {speed_b:.0f} KM/H</div>
             <div class="battle-car a">
@@ -1607,9 +1659,10 @@ def viz_dataset_overview(df: pd.DataFrame):
     with c3:
         st.markdown("<div class='ap-card'>", unsafe_allow_html=True)
         st.markdown("<div class='ap-card-title'>Cars by Body Type</div>", unsafe_allow_html=True)
-        counts = df["Body Type"].value_counts()
-        fig = px.pie(values=counts.values, names=counts.index, color_discrete_sequence=CHART_SEQUENCE, hole=0.5)
-        fig.update_layout(paper_bgcolor="rgba(0,0,0,0)", font={"color": COLORS["text"]}, height=320)
+        counts = df["Body Type"].value_counts().sort_values()
+        fig = px.bar(x=counts.values, y=counts.index, orientation="h", color_discrete_sequence=[COLORS["accent"]])
+        fig.update_layout(paper_bgcolor="rgba(0,0,0,0)", plot_bgcolor="rgba(0,0,0,0)",
+                           font={"color": COLORS["text"]}, height=320, xaxis_title="Cars", yaxis_title="")
         st.plotly_chart(fig, use_container_width=True, config={"displayModeBar": False})
         st.markdown("</div>", unsafe_allow_html=True)
     with c4:
