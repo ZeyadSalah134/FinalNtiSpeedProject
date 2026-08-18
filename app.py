@@ -1,6 +1,3 @@
-
-
-
 """
 REVORA
 Machine-learning powered automotive horsepower predictor.
@@ -348,37 +345,15 @@ def inject_css():
         @keyframes needleSweep {{ from {{ transform:translateX(-50%) rotate(-130deg); }} to {{ transform:translateX(-50%) rotate(var(--needle-angle,-130deg)); }} }}
         .predict-reveal {{ animation:panelReveal .75s ease-out both; }}
         .battle-stage {{
-            position:relative; overflow:hidden; border-radius:22px; min-height:360px; padding:1rem;
+            position:relative; overflow:hidden; border-radius:22px; min-height:300px; padding:1rem;
             background:linear-gradient(180deg,#0d1115,#080a0d);
             border:1px solid rgba(255,255,255,.1);
         }}
-        .battle-lane {{
-            position:absolute; left:4%; right:4%; height:1px;
-            background:rgba(255,255,255,.09);
-        }}
-        .battle-lane.one {{ top:37%; }}
-        .battle-lane.two {{ top:67%; }}
-        .battle-start {{
-            position:absolute; left:10%; top:9%; bottom:8%; width:2px;
-            border-left:2px dashed rgba(255,255,255,.18);
-        }}
-        .battle-finish {{
-            position:absolute; right:8%; top:9%; bottom:8%; width:3px;
-            background:linear-gradient(180deg,transparent,#FF5A1F,transparent);
-            box-shadow:0 0 18px rgba(255,90,31,.35);
-        }}
-        .battle-name {{
-            position:absolute; left:1rem;
-            font:700 .68rem 'JetBrains Mono',monospace; letter-spacing:.12em;
-            text-transform:uppercase;
-        }}
-        .battle-name.a {{ top:12%; color:#FF5A1F; }}
-        .battle-name.b {{ top:52%; color:#2FD4C0; }}
         .battle-track {{
-            position:absolute; left:10%; right:8%; height:110px;
+            position:absolute; left:6%; right:6%; height:120px;
         }}
-        .battle-track.a {{ top:23%; }}
-        .battle-track.b {{ top:53%; }}
+        .battle-track.a {{ top:16%; }}
+        .battle-track.b {{ top:54%; }}
         .battle-car-real {{
             position:absolute; left:0; top:4px; width:170px; height:100px;
             object-fit:contain; object-position:center; border-radius:12px;
@@ -414,8 +389,8 @@ def inject_css():
             to {{ transform:translateX(calc(100% - 170px)); }}
         }}
         @media (max-width: 760px) {{
-            .battle-stage {{ min-height:320px; }}
-            .battle-track {{ left:12%; right:5%; }}
+            .battle-stage {{ min-height:260px; }}
+            .battle-track {{ left:8%; right:4%; }}
             .battle-car-real {{ width:125px; }}
             @keyframes raceMove {{
                 to {{ transform:translateX(calc(100% - 125px)); }}
@@ -426,14 +401,9 @@ def inject_css():
         @keyframes speedIn {{ from {{ opacity:0; transform:translateY(15px) scale(.92); }} to {{ opacity:1; transform:none; }} }}
         @keyframes rpmFill {{ from {{ transform:scaleX(0); }} to {{ transform:scaleX(1); }} }}
         @keyframes panelReveal {{ from {{ opacity:0; transform:translateY(18px); }} to {{ opacity:1; transform:none; }} }}
-        @keyframes raceA {{ from {{ transform:translateX(0); }} to {{ transform:translateX(540px); }} }}
-        @keyframes raceB {{ from {{ transform:translateX(0); }} to {{ transform:translateX(430px); }} }}
         @keyframes winnerPop {{ from {{ opacity:0; transform:scale(.75); }} to {{ opacity:1; transform:scale(1); }} }}
         @media (max-width: 760px) {{
             .cluster-speed {{ font-size:4.3rem; }}
-            .battle-car {{ width:125px; }}
-            @keyframes raceA {{ to {{ transform:translateX(240px); }} }}
-            @keyframes raceB {{ to {{ transform:translateX(190px); }} }}
         }}
 
         </style>
@@ -784,7 +754,7 @@ def get_car_image_url(manufacturer: str, brand: str, year=None, body_type=None) 
                 if not thumb:
                     continue
                 title = str(page.get("title", "")).lower()
-                if "logo" in title or "emblem" in title or "company" in title:
+                if "logo" in title or "emblem" in title or "company" in title or "badge" in title:
                     continue
                 if brand.lower() in title or manufacturer.lower() in title:
                     preferred.append(thumb)
@@ -1458,14 +1428,6 @@ def render_power_battle(dataset: pd.DataFrame):
     st.markdown(
         f"""
         <div class="battle-stage">
-            <div class="battle-start"></div>
-            <div class="battle-finish"></div>
-            <div class="battle-lane one"></div>
-            <div class="battle-lane two"></div>
-
-            <div class="battle-name a">CAR A · {speed_a:.0f} KM/H</div>
-            <div class="battle-name b">CAR B · {speed_b:.0f} KM/H</div>
-
             <div class="battle-track a" style="--race-duration:{duration_a:.2f}s;">
                 {html_image(img_a, f"{row_a['Manufacturer']} {row_a['Brand']}")}
                 <span class="battle-speed a">{speed_a:.0f} km/h</span>
