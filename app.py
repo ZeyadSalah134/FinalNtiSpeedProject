@@ -14,6 +14,7 @@ Run with:
 import hashlib
 import json
 import math
+import textwrap
 from pathlib import Path
 from urllib.parse import urlencode
 from urllib.request import Request, urlopen
@@ -121,9 +122,22 @@ COLORS = {
 CHART_SEQUENCE = [COLORS["accent"], COLORS["telemetry"], "#8C7BFF", "#FFC24B", "#4B9FFF", "#FF7BAC"]
 
 
+def _html(raw: str) -> str:
+    """Dedent a multi-line HTML/markdown block before handing it to st.markdown.
+
+    Streamlit's markdown parser only treats a line as the start of a raw HTML
+    block when it has 0-3 leading spaces; anything indented 4+ spaces (which
+    naturally happens with triple-quoted strings written inside an indented
+    function body) is instead interpreted as a fenced code block, so the tags
+    show up as literal text instead of being rendered. Dedenting first avoids
+    that entirely.
+    """
+    return textwrap.dedent(raw).strip()
+
+
 def inject_css():
     st.markdown(
-        f"""
+        _html(f"""
         <style>
         @import url('https://fonts.googleapis.com/css2?family=Bebas+Neue&family=Inter:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;500;700&display=swap');
 
@@ -407,7 +421,7 @@ def inject_css():
         }}
 
         </style>
-        """,
+        """),
         unsafe_allow_html=True,
     )
 
@@ -635,7 +649,7 @@ def segmented_choice(label, options, default=None, key=None, help_=None):
 
 def render_hero():
     st.markdown(
-        f"""
+        _html(f"""
         <div class="ap-hero">
             <div class="ap-eyebrow">REVORA &middot; Automotive Performance Intelligence</div>
             <h1 class="ap-display"><span>REVORA</span></h1>
@@ -646,7 +660,7 @@ def render_hero():
                 <span class="status-sep">|</span> MODEL YEAR RANGE: <b>1950–2026</b>
             </div>
         </div>
-        """,
+        """),
         unsafe_allow_html=True,
     )
 
@@ -700,13 +714,13 @@ def render_sidebar(dataset: pd.DataFrame, best_name: str):
 def render_footer():
     st.markdown("<hr class='ap-div'>", unsafe_allow_html=True)
     st.markdown(
-        f"""
+        _html(f"""
         <div class="ap-footer">
             REVORA &middot; Machine Learning Automotive Performance Predictor<br>
             Built with Python &middot; Scikit-learn &middot; Streamlit<br>
             &copy; 2026
         </div>
-        """,
+        """),
         unsafe_allow_html=True,
     )
 
@@ -732,11 +746,35 @@ def get_car_image_url(manufacturer: str, brand: str, year=None, body_type=None) 
         f"{brand} automobile",
     ]
 
+    # Keywords that reliably indicate a brand mark / badge / non-vehicle image
+    # rather than an actual photograph of a car.
+    LOGO_KEYWORDS = (
+        "logo", "emblem", "company", "badge", "icon", "wordmark", "symbol",
+        "crest", "trademark", "corporate", "insignia", "hood ornament",
+        "monogram", "marque", ".svg",
+    )
+
+    def _is_logo_like(title: str, width, height) -> bool:
+        title_l = str(title).lower()
+        if any(kw in title_l for kw in LOGO_KEYWORDS):
+            return True
+        # Logos/badges are almost always near-square or vector art rendered
+        # square-ish; real car photography is landscape (noticeably wider
+        # than tall). Skip anything that isn't clearly landscape.
+        try:
+            if width and height:
+                ratio = float(width) / float(height)
+                if ratio < 1.25:
+                    return True
+        except Exception:
+            pass
+        return False
+
     for query in queries:
         try:
             params = urlencode({
                 "action": "query", "generator": "search", "gsrsearch": query,
-                "gsrnamespace": 0, "gsrlimit": 6, "prop": "pageimages",
+                "gsrnamespace": 0, "gsrlimit": 8, "prop": "pageimages",
                 "piprop": "thumbnail", "pithumbsize": 1200, "format": "json",
             })
             req = Request(
@@ -750,13 +788,15 @@ def get_car_image_url(manufacturer: str, brand: str, year=None, body_type=None) 
             preferred = []
             fallback = []
             for page in pages.values():
-                thumb = page.get("thumbnail", {}).get("source")
+                thumb_info = page.get("thumbnail", {})
+                thumb = thumb_info.get("source")
                 if not thumb:
                     continue
-                title = str(page.get("title", "")).lower()
-                if "logo" in title or "emblem" in title or "company" in title or "badge" in title:
+                title = str(page.get("title", ""))
+                if _is_logo_like(title, thumb_info.get("width"), thumb_info.get("height")):
                     continue
-                if brand.lower() in title or manufacturer.lower() in title:
+                title_l = title.lower()
+                if brand.lower() in title_l or manufacturer.lower() in title_l:
                     preferred.append(thumb)
                 else:
                     fallback.append(thumb)
@@ -771,8 +811,8 @@ def get_car_image_url(manufacturer: str, brand: str, year=None, body_type=None) 
         try:
             params = urlencode({
                 "action": "query", "generator": "search", "gsrsearch": query,
-                "gsrnamespace": 6, "gsrlimit": 8, "prop": "imageinfo",
-                "iiprop": "url", "iiurlwidth": 1200, "format": "json",
+                "gsrnamespace": 6, "gsrlimit": 10, "prop": "imageinfo",
+                "iiprop": "url|size", "iiurlwidth": 1200, "format": "json",
             })
             req = Request(
                 f"https://commons.wikimedia.org/w/api.php?{params}",
@@ -783,14 +823,17 @@ def get_car_image_url(manufacturer: str, brand: str, year=None, body_type=None) 
 
             pages = payload.get("query", {}).get("pages", {})
             for page in pages.values():
-                title = str(page.get("title", "")).lower()
-                if any(x in title for x in ("logo", "emblem", "badge", "icon")):
-                    continue
+                title = str(page.get("title", ""))
                 info = page.get("imageinfo", [])
-                if info:
-                    image_url = info[0].get("thumburl") or info[0].get("url")
-                    if image_url:
-                        return image_url
+                if not info:
+                    continue
+                width = info[0].get("thumbwidth") or info[0].get("width")
+                height = info[0].get("thumbheight") or info[0].get("height")
+                if _is_logo_like(title, width, height):
+                    continue
+                image_url = info[0].get("thumburl") or info[0].get("url")
+                if image_url:
+                    return image_url
         except Exception:
             continue
 
@@ -1061,10 +1104,12 @@ def render_prediction_result(hp: float, results_df, dataset: pd.DataFrame, value
     )
 
     st.markdown(
-        f"""<div class="ap-result"><div class="label">Predicted Power</div>
+        _html(f"""
+        <div class="ap-result"><div class="label">Predicted Power</div>
         <div class="hp ap-mono predict-reveal">{hp:,.0f}</div>
         <div class="kw">Horsepower · ≈ {kw:,.0f} kW</div>
-        <div class="ap-tier">{tier_emoji}&nbsp; {tier_label}</div></div>""",
+        <div class="ap-tier">{tier_emoji}&nbsp; {tier_label}</div></div>
+        """),
         unsafe_allow_html=True,
     )
 
@@ -1172,14 +1217,14 @@ def render_model_insights(results_df, feature_importance, dataset: pd.DataFrame,
     st.markdown("<div class='ap-card'>", unsafe_allow_html=True)
     st.markdown("<div class='ap-card-title'>\U0001F9E0 About the AI Model</div>", unsafe_allow_html=True)
     st.markdown(
-        f"""
+        _html(f"""
         - **Model used:** {best_name}
         - **Training dataset size:** {len(dataset):,} vehicles
         - **Target variable:** Power (hp)
         - **Feature preprocessing:** target encoding (Brand_Manufacturer), one-hot encoding
           (Origin Country, Body Type, Additional Type, Gearbox Type),
           median imputation + standard scaling (numeric specs)
-        """
+        """)
     )
     st.markdown("</div>", unsafe_allow_html=True)
 
@@ -1426,7 +1471,7 @@ def render_power_battle(dataset: pd.DataFrame):
     st.markdown("<div class='ap-card'>", unsafe_allow_html=True)
     st.markdown("<div class='ap-card-title'>🏁 REVORA SPEED BATTLE</div>", unsafe_allow_html=True)
     st.markdown(
-        f"""
+        _html(f"""
         <div class="battle-stage">
             <div class="battle-track a" style="--race-duration:{duration_a:.2f}s;">
                 {html_image(img_a, f"{row_a['Manufacturer']} {row_a['Brand']}")}
@@ -1438,28 +1483,28 @@ def render_power_battle(dataset: pd.DataFrame):
                 <span class="battle-speed b">{speed_b:.0f} km/h</span>
             </div>
         </div>
-        """,
+        """),
         unsafe_allow_html=True,
     )
 
     if winner == "Tie":
-        winner_html = """
+        winner_html = _html("""
         <div class="battle-result">
             <div class="cup">⚖️</div>
             <div class="winner-text">PERFECT TIE</div>
             <div class="winner-meta">SAME TOP SPEED · SAME ACCELERATION</div>
         </div>
-        """
+        """)
     else:
         winning_speed = speed_a if winner == "A" else speed_b
         losing_speed = speed_b if winner == "A" else speed_a
-        winner_html = f"""
+        winner_html = _html(f"""
         <div class="battle-result">
             <div class="cup">🏆</div>
             <div class="winner-text">{winner_name}</div>
             <div class="winner-meta">CAR {winner} WINS · {winning_speed:.0f} KM/H vs {losing_speed:.0f} KM/H</div>
         </div>
-        """
+        """)
 
     st.markdown(winner_html, unsafe_allow_html=True)
     st.markdown("</div>", unsafe_allow_html=True)
