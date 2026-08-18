@@ -1,5 +1,6 @@
 
 
+
 """
 REVORA
 Machine-learning powered automotive horsepower predictor.
@@ -352,57 +353,66 @@ def inject_css():
         @keyframes needleSweep {{ from {{ transform:translateX(-50%) rotate(-130deg); }} to {{ transform:translateX(-50%) rotate(var(--needle-angle,-130deg)); }} }}
         .predict-reveal {{ animation:panelReveal .75s ease-out both; }}
         .battle-stage {{
-            position:relative; overflow:hidden; border-radius:22px; min-height:300px; padding:1rem;
-            background:linear-gradient(180deg,#0d1115,#080a0d);
-            border:1px solid rgba(255,255,255,.1);
+            position:relative; overflow:hidden; border-radius:22px; min-height:430px; padding:0;
+            background:radial-gradient(ellipse 700px 260px at 50% 50%,rgba(255,90,31,.045),transparent 70%),linear-gradient(180deg,#0b0e12,#07090c);
+            border:1px solid rgba(255,255,255,.10); box-shadow:inset 0 1px 0 rgba(255,255,255,.035),0 20px 50px rgba(0,0,0,.32);
         }}
-        .battle-track {{
-            position:absolute; left:6%; right:6%; height:120px;
-        }}
-        .battle-track.a {{ top:16%; }}
-        .battle-track.b {{ top:54%; }}
-        .battle-car-real {{
-            position:absolute; left:0; top:4px; width:170px; height:100px;
-            object-fit:contain; object-position:center; border-radius:12px;
-            filter:drop-shadow(0 12px 18px rgba(0,0,0,.55));
-            animation:raceMove var(--race-duration) cubic-bezier(.18,.8,.2,1) forwards;
-        }}
-        .battle-speed {{
-            position:absolute; right:0; top:34px;
-            font:700 .72rem 'JetBrains Mono',monospace; padding:.28rem .55rem;
-            border-radius:999px; background:rgba(0,0,0,.55);
-            border:1px solid rgba(255,255,255,.10);
-        }}
-        .battle-speed.a {{ color:#FF5A1F; }}
-        .battle-speed.b {{ color:#2FD4C0; }}
-        .battle-result {{ text-align:center; padding:1.1rem 1rem .4rem; }}
-        .battle-result .cup {{ font-size:2rem; }}
-        .battle-result .winner-text {{
-            font:400 2.5rem/1 'Bebas Neue',sans-serif;
-            color:#FF5A1F; letter-spacing:.05em;
-        }}
-        .battle-result .winner-meta {{
-            margin-top:.35rem; color:#7f8a93;
-            font:600 .7rem 'JetBrains Mono',monospace; letter-spacing:.08em;
-        }}
-        .real-photo-fallback {{
-            height:220px; display:flex; align-items:center; justify-content:center;
-            text-align:center; color:#68727b; border:1px dashed rgba(255,255,255,.10);
-            border-radius:12px; background:#090b0e;
-            font:600 .72rem 'JetBrains Mono',monospace; padding:1rem;
-        }}
-        @keyframes raceMove {{
-            from {{ transform:translateX(0); }}
-            to {{ transform:translateX(calc(100% - 170px)); }}
-        }}
-        @media (max-width: 760px) {{
-            .battle-stage {{ min-height:260px; }}
-            .battle-track {{ left:8%; right:4%; }}
-            .battle-car-real {{ width:125px; }}
-            @keyframes raceMove {{
-                to {{ transform:translateX(calc(100% - 125px)); }}
-            }}
-        }}
+        .battle-hud {{ position:relative; z-index:8; display:flex; justify-content:space-between; align-items:center; padding:.75rem 1rem .55rem; border-bottom:1px solid rgba(255,255,255,.055); background:rgba(255,255,255,.018); }}
+        .battle-hud .brand {{ font:700 .66rem 'JetBrains Mono',monospace; letter-spacing:.18em; color:#2FD4C0; }}
+        .battle-hud .mode {{ font:700 .60rem 'JetBrains Mono',monospace; letter-spacing:.14em; color:#56616a; }}
+        .battle-start-lights {{ display:flex; gap:.28rem; align-items:center; }}
+        .start-light {{ width:9px; height:9px; border-radius:50%; background:#2a3035; border:1px solid rgba(255,255,255,.08); box-shadow:inset 0 1px 2px #000; animation:startingLights 3.25s steps(1,end) both; }}
+        .start-light:nth-child(1) {{ animation-delay:0s; }} .start-light:nth-child(2) {{ animation-delay:.72s; }} .start-light:nth-child(3) {{ animation-delay:1.44s; }}
+        @keyframes startingLights {{ 0%,22% {{ background:#ff2d55; box-shadow:0 0 12px rgba(255,45,85,.8); }} 23%,100% {{ background:#2a3035; box-shadow:none; }} }}
+        .battle-countdown {{ position:absolute; inset:0; z-index:7; display:flex; align-items:center; justify-content:center; pointer-events:none; font:400 5rem/1 'Bebas Neue',sans-serif; color:#f2f4f6; text-shadow:0 0 35px rgba(255,90,31,.45); animation:countdown 3.25s steps(1,end) both; }}
+        .battle-countdown::after {{ content:'3'; animation:countText 3.25s steps(1,end) both; }}
+        @keyframes countText {{ 0%,31% {{ content:'3'; }} 32%,62% {{ content:'2'; }} 63%,92% {{ content:'1'; }} 93%,100% {{ content:'GO'; color:#2FD4C0; }} }}
+        @keyframes countdown {{ 0%,92% {{ opacity:1; transform:scale(1); }} 100% {{ opacity:0; transform:scale(1.45); }} }}
+        .battle-lanes {{ position:absolute; inset:70px 0 0; }}
+        .battle-track {{ position:absolute; left:5%; right:5%; height:145px; border-bottom:1px solid rgba(255,255,255,.075); }}
+        .battle-track.a {{ top:5%; }} .battle-track.b {{ top:52%; }}
+        .battle-track::before {{ content:""; position:absolute; left:0; right:0; bottom:0; height:1px; background:linear-gradient(90deg,transparent,rgba(255,255,255,.09) 8%,rgba(255,255,255,.09) 92%,transparent); }}
+        .lane-label {{ position:absolute; left:-.1rem; top:8px; z-index:5; font:700 .63rem 'JetBrains Mono',monospace; letter-spacing:.16em; text-transform:uppercase; }}
+        .lane-label.a {{ color:#FF5A1F; }} .lane-label.b {{ color:#2FD4C0; }}
+        .battle-speed {{ position:absolute; right:.2rem; top:9px; z-index:6; font:700 .68rem 'JetBrains Mono',monospace; padding:.28rem .52rem; border-radius:999px; background:rgba(0,0,0,.50); border:1px solid rgba(255,255,255,.08); }}
+        .battle-speed.a {{ color:#FF5A1F; }} .battle-speed.b {{ color:#2FD4C0; }}
+        .battle-car {{ position:absolute; left:0; top:48px; width:170px; height:70px; left:0; --car-width:170px; animation:raceCar var(--race-duration) cubic-bezier(.12,.78,.16,1) var(--race-delay) forwards; filter:drop-shadow(0 8px 13px rgba(0,0,0,.55)); z-index:4; }}
+        .battle-car.a {{ --car-color:#FF5A1F; --car-glow:rgba(255,90,31,.72); }} .battle-car.b {{ --car-color:#2FD4C0; --car-glow:rgba(47,212,192,.72); }}
+        .car-shell {{ position:absolute; left:17px; bottom:15px; width:132px; height:31px; border-radius:17px 25px 8px 9px; background:linear-gradient(180deg,#343c43,#14191e); border:1px solid var(--car-color); box-shadow:0 0 16px var(--car-glow),inset 0 2px 4px rgba(255,255,255,.08); }}
+        .car-nose {{ position:absolute; right:4px; bottom:15px; width:32px; height:20px; border-radius:0 18px 6px 0; background:#22282d; border-right:2px solid var(--car-color); }}
+        .car-roof {{ position:absolute; left:55px; bottom:42px; width:63px; height:27px; border-radius:25px 25px 5px 5px; background:linear-gradient(135deg,#2e373d,#101419); border:1px solid rgba(255,255,255,.10); box-shadow:inset 0 1px 3px rgba(255,255,255,.07); }}
+        .car-window {{ position:absolute; left:63px; bottom:47px; width:47px; height:17px; border-radius:14px 14px 2px 2px; background:linear-gradient(135deg,rgba(91,117,129,.55),rgba(10,15,19,.95)); border:1px solid rgba(47,212,192,.15); }}
+        .car-window::after {{ content:""; position:absolute; left:22px; top:1px; bottom:1px; width:1px; background:rgba(255,255,255,.10); transform:skewX(-10deg); }}
+        .car-wheel {{ position:absolute; bottom:2px; width:23px; height:23px; border-radius:50%; background:#07090b; border:3px solid #1e252b; box-shadow:0 0 0 1px rgba(255,255,255,.06),inset 0 0 0 4px #11161a; }}
+        .car-wheel::after {{ content:""; position:absolute; inset:6px; border-radius:50%; background:#323b42; box-shadow:0 0 5px var(--car-glow); }}
+        .car-wheel.front {{ right:27px; }} .car-wheel.rear {{ left:29px; }}
+        .car-light {{ position:absolute; right:4px; bottom:31px; width:7px; height:4px; border-radius:99px; background:#fff; box-shadow:0 0 9px #fff,0 0 18px var(--car-glow); }}
+        .car-tail {{ position:absolute; left:16px; bottom:31px; width:5px; height:5px; border-radius:50%; background:#ff2d55; box-shadow:0 0 8px #ff2d55; }}
+        .speed-trail {{ position:absolute; left:-5px; top:35px; width:125px; height:18px; opacity:.8; transform:skewX(-22deg); }}
+        .speed-trail::before,.speed-trail::after {{ content:""; position:absolute; right:0; border-radius:99px; background:linear-gradient(90deg,transparent,var(--car-color)); }}
+        .speed-trail::before {{ top:2px; width:100%; height:2px; box-shadow:0 0 9px var(--car-glow); }} .speed-trail::after {{ top:12px; width:70%; height:1px; opacity:.55; }}
+        .battle-car.b .speed-trail {{ width:185px; }}
+        @keyframes raceCar {{ 0% {{ left:0; transform:scale(.94); }} 8% {{ left:5%; transform:scale(1.02); }} 22% {{ left:18%; transform:scale(1); }} 100% {{ left:calc(100% - var(--car-width)); transform:scale(1); filter:drop-shadow(0 8px 13px rgba(0,0,0,.55)) drop-shadow(0 0 13px var(--car-glow)); }} }}
+        .finish-line {{ position:absolute; right:7%; top:5%; bottom:5%; width:14px; z-index:3; background:repeating-linear-gradient(180deg,#f2f4f6 0 8px,#101419 8px 16px); box-shadow:0 0 15px rgba(255,255,255,.18); }}
+        .finish-label {{ position:absolute; right:3.9%; top:8%; z-index:5; writing-mode:vertical-rl; font:700 .55rem 'JetBrains Mono',monospace; letter-spacing:.16em; color:#6e7881; }}
+        .race-start {{ position:absolute; left:5%; top:4%; bottom:5%; width:2px; background:rgba(255,255,255,.11); z-index:3; }}
+        .battle-go {{ position:absolute; left:50%; bottom:7px; transform:translateX(-50%); z-index:8; font:700 .54rem 'JetBrains Mono',monospace; letter-spacing:.22em; color:#4e5962; }}
+        .battle-result {{ text-align:center; padding:1.1rem 1rem .4rem; animation:winnerPop .8s ease-out var(--winner-delay,4.5s) both; }}
+        .battle-result .cup {{ font-size:2rem; }} .battle-result .winner-text {{ font:400 2.5rem/1 'Bebas Neue',sans-serif; color:#FF5A1F; letter-spacing:.05em; }}
+        .battle-result .winner-meta {{ margin-top:.35rem; color:#7f8a93; font:600 .7rem 'JetBrains Mono',monospace; letter-spacing:.08em; }}
+        .battle-result .winner-sub {{ margin-top:.4rem; color:#2FD4C0; font:700 .58rem 'JetBrains Mono',monospace; letter-spacing:.12em; }}
+        .battle-controls {{ display:flex; align-items:center; justify-content:center; margin:.7rem 0 .2rem; }}
+        .battle-live {{ display:inline-flex; align-items:center; gap:.35rem; padding:.28rem .55rem; border-radius:999px; border:1px solid rgba(47,212,192,.22); color:#2FD4C0; background:rgba(47,212,192,.05); font:700 .57rem 'JetBrains Mono',monospace; letter-spacing:.13em; }}
+        .battle-live-dot {{ width:6px; height:6px; border-radius:50%; background:#2FD4C0; box-shadow:0 0 10px #2FD4C0; animation:statusPulse 1s infinite; }}
+        .telemetry-strip {{ display:grid; grid-template-columns:1fr 1fr 1fr; gap:.45rem; margin-top:.65rem; }}
+        .telemetry-box {{ padding:.55rem .4rem; text-align:center; border:1px solid rgba(255,255,255,.065); border-radius:10px; background:rgba(255,255,255,.018); }}
+        .telemetry-box .v {{ font:700 .92rem 'JetBrains Mono',monospace; color:#edf1f3; }} .telemetry-box .l {{ margin-top:.12rem; font:500 .52rem 'JetBrains Mono',monospace; color:#68727b; letter-spacing:.08em; text-transform:uppercase; }}
+        .telemetry-box.a .v {{ color:#FF5A1F; }} .telemetry-box.b .v {{ color:#2FD4C0; }}
+        .race-bars {{ margin-top:.75rem; }} .race-bar-row {{ display:grid; grid-template-columns:42px 1fr 62px; align-items:center; gap:.45rem; margin:.38rem 0; }}
+        .race-bar-row .name {{ font:700 .55rem 'JetBrains Mono',monospace; color:#69747d; }} .race-bar-track {{ height:5px; border-radius:99px; overflow:hidden; background:#151b20; }}
+        .race-bar-fill {{ height:100%; border-radius:99px; transform-origin:left; animation:telemetryFill 2.8s ease-out 3.3s both; }} .race-bar-fill.a {{ background:#FF5A1F; }} .race-bar-fill.b {{ background:#2FD4C0; }}
+        .race-bar-speed {{ text-align:right; font:700 .55rem 'JetBrains Mono',monospace; color:#68727b; }} @keyframes telemetryFill {{ from {{ transform:scaleX(0); }} to {{ transform:scaleX(1); }} }}
+        @media (max-width:760px) {{ .battle-stage {{ min-height:390px; }} .battle-car {{ width:145px; }} .car-shell {{ left:14px; width:112px; }} .car-roof {{ left:48px; }} .car-window {{ left:55px; }} .car-wheel.front {{ right:23px; }} .car-wheel.rear {{ left:25px; }} .battle-track {{ left:7%; right:7%; }} .finish-line {{ right:8%; }} }}
 
         @keyframes statusPulse {{ 50% {{ opacity:.35; transform:scale(.7); }} }}
         @keyframes speedIn {{ from {{ opacity:0; transform:translateY(15px) scale(.92); }} to {{ opacity:1; transform:none; }} }}
@@ -1322,44 +1332,21 @@ def render_car_card(row: pd.Series, title: str):
 
 
 def render_power_battle(dataset: pd.DataFrame):
-    """Real-photo head-to-head battle. Faster cars visibly finish first."""
+    """REVORA Speed Battle: futuristic side-view cars, speed-based race animation, and HUD telemetry."""
     with st.container(border=True):
         st.markdown("<div class='ap-card-title'>⚔️ Choose Your Fighters</div>", unsafe_allow_html=True)
-
         manufacturers = safe_unique(dataset, "Manufacturer", ["Unknown"])
         ca, cb = st.columns(2)
 
         def choose_battle_car(side, default_mfr_index=0):
             with (ca if side == "A" else cb):
                 st.markdown(f"**Car {side}**")
-                mfr = st.selectbox(
-                    f"Manufacturer ({side})", manufacturers,
-                    index=min(default_mfr_index, len(manufacturers)-1),
-                    key=f"battle_mfr_{side.lower()}",
-                )
-                brands = sorted(
-                    dict.fromkeys(
-                        str(x).strip()
-                        for x in safe_unique(
-                            dataset[dataset["Manufacturer"] == mfr], "Brand", ["Unknown"]
-                        )
-                        if str(x).strip()
-                    ), key=str.lower
-                ) or ["Unknown"]
+                mfr = st.selectbox(f"Manufacturer ({side})", manufacturers, index=min(default_mfr_index, len(manufacturers)-1), key=f"battle_mfr_{side.lower()}")
+                brands = sorted(dict.fromkeys(str(x).strip() for x in safe_unique(dataset[dataset["Manufacturer"] == mfr], "Brand", ["Unknown"]) if str(x).strip()), key=str.lower) or ["Unknown"]
                 brand = st.selectbox(f"Model ({side})", brands, key=f"battle_brand_{side.lower()}")
-
-                pool = dataset[
-                    (dataset["Manufacturer"] == mfr) & (dataset["Brand"] == brand)
-                ].copy()
+                pool = dataset[(dataset["Manufacturer"] == mfr) & (dataset["Brand"] == brand)].copy()
                 pool["_year_numeric"] = pd.to_numeric(pool["Model Year"], errors="coerce")
-
-                year = int(st.number_input(
-                    f"Model Year ({side})", min_value=MIN_YEAR, max_value=MAX_YEAR,
-                    value=MAX_YEAR, step=1, format="%d",
-                    key=f"battle_year_{side.lower()}",
-                    help=f"Selectable range: {MIN_YEAR}–{MAX_YEAR}.",
-                ))
-
+                year = int(st.number_input(f"Model Year ({side})", min_value=MIN_YEAR, max_value=MAX_YEAR, value=MAX_YEAR, step=1, format="%d", key=f"battle_year_{side.lower()}", help=f"Selectable range: {MIN_YEAR}–{MAX_YEAR}."))
                 rows = pool[pool["_year_numeric"] == year]
                 if rows.empty:
                     valid = pool[pool["_year_numeric"].between(MIN_YEAR, MAX_YEAR)]
@@ -1367,57 +1354,20 @@ def render_power_battle(dataset: pd.DataFrame):
                         nearest_idx = (valid["_year_numeric"] - year).abs().idxmin()
                         nearest_year = int(valid.loc[nearest_idx, "_year_numeric"])
                         rows = valid.loc[[nearest_idx]]
-                        st.caption(
-                            f"No exact {year} record. Using the nearest dataset record: {nearest_year}."
-                        )
+                        st.caption(f"No exact {year} record. Using the nearest dataset record: {nearest_year}.")
                     else:
                         rows = pool.tail(1)
-
                 if len(rows) > 1:
                     ids = rows["_car_id"].tolist()
-                    cid = st.selectbox(
-                        f"Configuration ({side})", ids,
-                        format_func=lambda x: (
-                            f"{x} — {rows.loc[rows['_car_id']==x,'Power (hp)'].iloc[0]:.0f} HP"
-                        ),
-                        key=f"battle_dup_{side.lower()}",
-                    )
-                    row = rows[rows["_car_id"] == cid].iloc[0]
-                else:
-                    row = rows.iloc[0]
-                return row
+                    cid = st.selectbox(f"Configuration ({side})", ids, format_func=lambda x: f"{x} — {rows.loc[rows['_car_id']==x,'Power (hp)'].iloc[0]:.0f} HP", key=f"battle_dup_{side.lower()}")
+                    return rows[rows["_car_id"] == cid].iloc[0]
+                return rows.iloc[0]
 
         row_a = choose_battle_car("A", 0)
         row_b = choose_battle_car("B", 1 if len(manufacturers) > 1 else 0)
 
     if row_a["_car_id"] == row_b["_car_id"]:
         st.warning("Car A and Car B are the same vehicle record — pick a different Car B.")
-
-    c1, c2 = st.columns(2)
-    with c1:
-        render_car_card(row_a, "🛡️ Car A")
-    with c2:
-        render_car_card(row_b, "🛡️ Car B")
-
-    with st.container(border=True):
-        st.markdown("<div class='ap-card-title'>📊 Head-to-Head Metrics</div>", unsafe_allow_html=True)
-        metrics_data = []
-        for col, direction, unit in COMPARISON_METRICS:
-            va, vb = row_a.get(col, np.nan), row_b.get(col, np.nan)
-            if direction == "higher":
-                better = "A" if va > vb else ("B" if vb > va else "Tie")
-            elif direction == "lower":
-                better = "A" if va < vb else ("B" if vb < va else "Tie")
-            else:
-                better = "—"
-            metrics_data.append({
-                "Metric": col,
-                "Car A": "—" if pd.isna(va) else va,
-                "Car B": "—" if pd.isna(vb) else vb,
-                "Unit": unit,
-                "Better": better,
-            })
-        st.dataframe(pd.DataFrame(metrics_data), hide_index=True, use_container_width=True)
 
     speed_a = float(row_a.get("Top speed (kph)", 0) or 0)
     speed_b = float(row_b.get("Top speed (kph)", 0) or 0)
@@ -1435,108 +1385,88 @@ def render_power_battle(dataset: pd.DataFrame):
     else:
         winner = "Tie"
 
-    winner_name = (
-        f"{row_a['Manufacturer']} {row_a['Brand']}" if winner == "A"
-        else f"{row_b['Manufacturer']} {row_b['Brand']}" if winner == "B"
-        else "Perfect Tie"
-    )
+    winner_name = f"{row_a['Manufacturer']} {row_a['Brand']}" if winner == "A" else f"{row_b['Manufacturer']} {row_b['Brand']}" if winner == "B" else "Perfect Tie"
 
-    # Realistic animation: both cars cover the same track, but their durations
-    # are inversely proportional to actual top speed. The faster car therefore
-    # moves ahead instead of both cars always reaching the same point together.
     max_speed = max(speed_a, speed_b, 1.0)
-    base_duration = 3.6
+    base_duration = 3.15
     duration_a = base_duration * max_speed / max(speed_a, 1.0)
     duration_b = base_duration * max_speed / max(speed_b, 1.0)
+    accel_factor_a = float(np.clip(1.0 + (5.0 - min(accel_a, 5.0)) * 0.018, 1.0, 1.08))
+    accel_factor_b = float(np.clip(1.0 + (5.0 - min(accel_b, 5.0)) * 0.018, 1.0, 1.08))
+    duration_a /= accel_factor_a
+    duration_b /= accel_factor_b
 
-    img_a = get_car_image_url(row_a["Manufacturer"], row_a["Brand"], int(row_a["Model Year"]), row_a.get("Body Type"))
-    img_b = get_car_image_url(row_b["Manufacturer"], row_b["Brand"], int(row_b["Model Year"]), row_b.get("Body Type"))
+    track_distance = "88%"
+    race_delay = "3.25s"
+    winner_delay = f"{max(duration_a, duration_b) + 3.25:.2f}s"
+    speed_gap = abs(speed_a - speed_b)
+    max_display_speed = max(speed_a, speed_b, 1.0)
+    fill_a = max(0.05, min(speed_a / max_display_speed, 1.0))
+    fill_b = max(0.05, min(speed_b / max_display_speed, 1.0))
 
-    def html_image(url, label):
-        if url:
-            return f'<img class="battle-car-real" src="{url}" alt="{label}">'
-        return (
-            f'<div class="battle-car-real" style="display:flex;align-items:center;'
-            f'justify-content:center;background:#151a1f;color:#8b939c;'
-            f'font:600 .65rem JetBrains Mono,monospace;padding:10px;text-align:center;">'
-            f'{label}</div>'
-        )
+    def car_markup(color_class, duration):
+        return f"""<div class="battle-car {color_class}" style="--race-duration:{duration:.2f}s;--race-delay:{race_delay};--track-distance:{track_distance};">
+            <div class="speed-trail"></div><div class="car-roof"></div><div class="car-window"></div><div class="car-shell"></div><div class="car-nose"></div>
+            <div class="car-wheel rear"></div><div class="car-wheel front"></div><div class="car-tail"></div><div class="car-light"></div>
+        </div>"""
+
+    label_a = f"{row_a['Manufacturer']} {row_a['Brand']}"
+    label_b = f"{row_b['Manufacturer']} {row_b['Brand']}"
 
     with st.container(border=True):
         st.markdown("<div class='ap-card-title'>🏁 REVORA SPEED BATTLE</div>", unsafe_allow_html=True)
-        st.markdown(
-            _html(f"""
-            <div class="battle-stage">
-                <div class="battle-track a" style="--race-duration:{duration_a:.2f}s;">
-                    {html_image(img_a, f"{row_a['Manufacturer']} {row_a['Brand']}")}
-                    <span class="battle-speed a">{speed_a:.0f} km/h</span>
-                </div>
-                <div class="battle-track b" style="--race-duration:{duration_b:.2f}s;">
-                    {html_image(img_b, f"{row_b['Manufacturer']} {row_b['Brand']}")}
-                    <span class="battle-speed b">{speed_b:.0f} km/h</span>
-                </div>
+        st.markdown(_html(f"""
+        <div class="battle-stage">
+            <div class="battle-hud"><span class="brand">REVORA SPEED BATTLE</span><span class="battle-start-lights"><i class="start-light"></i><i class="start-light"></i><i class="start-light"></i></span><span class="mode">TOP SPEED / 0–100 TIE BREAK</span></div>
+            <div class="battle-countdown"></div>
+            <div class="battle-lanes">
+                <div class="race-start"></div><div class="finish-line"></div><div class="finish-label">FINISH</div>
+                <div class="battle-track a"><span class="lane-label a">CAR A · {speed_a:.0f} KM/H</span><span class="battle-speed a">{speed_a:.0f} km/h</span>{car_markup('a', duration_a)}</div>
+                <div class="battle-track b"><span class="lane-label b">CAR B · {speed_b:.0f} KM/H</span><span class="battle-speed b">{speed_b:.0f} km/h</span>{car_markup('b', duration_b)}</div>
             </div>
-            """),
-            unsafe_allow_html=True,
-        )
+            <div class="battle-go">ACCELERATION LOCKED · RACE LIVE</div>
+        </div>
+        """), unsafe_allow_html=True)
 
         if winner == "Tie":
-            winner_html = _html("""
-            <div class="battle-result">
-                <div class="cup">⚖️</div>
-                <div class="winner-text">PERFECT TIE</div>
-                <div class="winner-meta">SAME TOP SPEED · SAME ACCELERATION</div>
-            </div>
-            """)
+            winner_html = _html(f"""<div class="battle-result" style="--winner-delay:{winner_delay};"><div class="cup">⚖️</div><div class="winner-text">PERFECT TIE</div><div class="winner-meta">SAME TOP SPEED · ACCELERATION ALSO MATCHED</div><div class="winner-sub">{speed_a:.0f} KM/H · {accel_a:.1f}s 0–100 vs {speed_b:.0f} KM/H · {accel_b:.1f}s 0–100</div></div>""")
         else:
             winning_speed = speed_a if winner == "A" else speed_b
             losing_speed = speed_b if winner == "A" else speed_a
-            winner_html = _html(f"""
-            <div class="battle-result">
-                <div class="cup">🏆</div>
-                <div class="winner-text">{winner_name}</div>
-                <div class="winner-meta">CAR {winner} WINS · {winning_speed:.0f} KM/H vs {losing_speed:.0f} KM/H</div>
-            </div>
-            """)
-
+            winning_accel = accel_a if winner == "A" else accel_b
+            losing_accel = accel_b if winner == "A" else accel_a
+            winner_html = _html(f"""<div class="battle-result" style="--winner-delay:{winner_delay};"><div class="cup">🏆</div><div class="winner-text">{winner_name}</div><div class="winner-meta">CAR {winner} WINS · {winning_speed:.0f} KM/H vs {losing_speed:.0f} KM/H</div><div class="winner-sub">{winning_speed-losing_speed:+.0f} KM/H ADVANTAGE · {winning_accel:.1f}s vs {losing_accel:.1f}s 0–100</div></div>""")
         st.markdown(winner_html, unsafe_allow_html=True)
 
     with st.container(border=True):
-        st.markdown("<div class='ap-card-title'>Live Battle Telemetry</div>", unsafe_allow_html=True)
-        a, b, c = st.columns(3)
-        with a:
-            st.markdown(
-                f"<div class='ap-metric'><div class='v'>{speed_a:.0f} km/h</div>"
-                "<div class='l'>Car A Top Speed</div></div>", unsafe_allow_html=True)
-        with b:
-            st.markdown(
-                f"<div class='ap-metric'><div class='v'>{speed_b:.0f} km/h</div>"
-                "<div class='l'>Car B Top Speed</div></div>", unsafe_allow_html=True)
-        with c:
-            gap = abs(speed_a - speed_b)
-            st.markdown(
-                f"<div class='ap-metric'><div class='v'>{gap:.0f} km/h</div>"
-                "<div class='l'>Speed Gap</div></div>", unsafe_allow_html=True)
+        st.markdown("<div class='ap-card-title'>📡 Live Battle Telemetry</div>", unsafe_allow_html=True)
+        st.markdown(f"""
+        <div class="battle-controls"><span class="battle-live"><span class="battle-live-dot"></span> LIVE TELEMETRY</span></div>
+        <div class="telemetry-strip"><div class="telemetry-box a"><div class="v">{speed_a:.0f} km/h</div><div class="l">Car A Top Speed</div></div><div class="telemetry-box b"><div class="v">{speed_b:.0f} km/h</div><div class="l">Car B Top Speed</div></div><div class="telemetry-box"><div class="v">{speed_gap:.0f} km/h</div><div class="l">Speed Gap</div></div></div>
+        <div class="race-bars"><div class="race-bar-row"><span class="name">CAR A</span><div class="race-bar-track"><div class="race-bar-fill a" style="width:{fill_a*100:.1f}%;"></div></div><span class="race-bar-speed">{speed_a:.0f} km/h</span></div><div class="race-bar-row"><span class="name">CAR B</span><div class="race-bar-track"><div class="race-bar-fill b" style="width:{fill_b*100:.1f}%;"></div></div><span class="race-bar-speed">{speed_b:.0f} km/h</span></div></div>
+        """, unsafe_allow_html=True)
+        st.caption(f"CAR A: {label_a} · {accel_a:.1f}s 0–100 km/h  |  CAR B: {label_b} · {accel_b:.1f}s 0–100 km/h")
 
-    if "battle_history" not in st.session_state:
-        st.session_state.battle_history = []
+    with st.container(border=True):
+        st.markdown("<div class='ap-card-title'>📊 Head-to-Head Metrics</div>", unsafe_allow_html=True)
+        metrics_data = []
+        for col, direction, unit in COMPARISON_METRICS:
+            va, vb = row_a.get(col, np.nan), row_b.get(col, np.nan)
+            if direction == "higher": better = "A" if va > vb else ("B" if vb > va else "Tie")
+            elif direction == "lower": better = "A" if va < vb else ("B" if vb < va else "Tie")
+            else: better = "—"
+            metrics_data.append({"Metric": col, "Car A": "—" if pd.isna(va) else va, "Car B": "—" if pd.isna(vb) else vb, "Unit": unit, "Better": better})
+        st.dataframe(pd.DataFrame(metrics_data), hide_index=True, use_container_width=True)
 
+    if "battle_history" not in st.session_state: st.session_state.battle_history = []
     signature = f"{row_a['_car_id']}|{row_b['_car_id']}"
     if not any(x["signature"] == signature for x in st.session_state.battle_history):
-        st.session_state.battle_history.insert(0, {
-            "signature": signature,
-            "A": f"{row_a['Manufacturer']} {row_a['Brand']} ({int(row_a['Model Year'])})",
-            "B": f"{row_b['Manufacturer']} {row_b['Brand']} ({int(row_b['Model Year'])})",
-            "Winner": winner_name,
-            "Result": f"{speed_a:.0f}–{speed_b:.0f} km/h",
-        })
+        st.session_state.battle_history.insert(0, {"signature": signature, "A": f"{label_a} ({int(row_a['Model Year'])})", "B": f"{label_b} ({int(row_b['Model Year'])})", "Winner": winner_name, "Result": f"{speed_a:.0f}–{speed_b:.0f} km/h"})
         st.session_state.battle_history = st.session_state.battle_history[:10]
-
     if st.session_state.battle_history:
         with st.expander("⚔️ Recent Battle History"):
             history_df = pd.DataFrame(st.session_state.battle_history).drop(columns=["signature"])
             st.dataframe(history_df.fillna("—"), hide_index=True, use_container_width=True)
-
 
 def apply_filters(dataset: pd.DataFrame) -> pd.DataFrame:
     with st.expander("\U0001F50D Advanced Filters", expanded=False):
